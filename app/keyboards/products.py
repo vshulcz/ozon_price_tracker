@@ -76,7 +76,7 @@ def deal_reached_kb(
 ) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
     b.button(
-        text=i18n.t(lang, "btn.open"), 
+        text=i18n.t(lang, "btn.open"),
         url=url,
     )
     b.button(

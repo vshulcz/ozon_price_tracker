@@ -6,14 +6,14 @@ from typing import Optional
 from aiogram.types import Message, CallbackQuery, User
 
 from app.i18n import i18n
-from app.repositories.users import SqliteUserRepo
+from app.repositories.users import PostgresUserRepo
 
 
 logger = logging.getLogger(__name__)
 
 
 class ErrorsMiddleware:
-    def __init__(self, user_repo: Optional[SqliteUserRepo] = None) -> None:
+    def __init__(self, user_repo: Optional[PostgresUserRepo] = None) -> None:
         self.user_repo = user_repo
 
     async def __call__(self, handler, event, data):
@@ -24,7 +24,7 @@ class ErrorsMiddleware:
 
         lang = "ru"
         try:
-            repo: Optional[SqliteUserRepo] = data.get("user_repo") or self.user_repo
+            repo: Optional[PostgresUserRepo] = data.get("user_repo") or self.user_repo
             user_id = None
             if isinstance(event, Message | CallbackQuery) and isinstance(
                 event.from_user, User

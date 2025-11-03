@@ -1,13 +1,15 @@
 [project]
-name = "ozon_price_monitoring"
+name = "ozon_price_tracker"
 version = "0.1.0"
 description = "Ozon Price Tracker Bot"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "aiogram>=3.22.0",
-    "aiosqlite>=0.21.0",
     "apscheduler>=3.11.0",
     "dotenv>=0.9.9",
     "playwright>=1.55.0",
+    "psycopg[binary]>=3.2",
+    "psycopg-pool>=3.2",
+    "sqlalchemy>=2.0.44",
 ]

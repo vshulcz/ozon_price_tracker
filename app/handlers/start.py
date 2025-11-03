@@ -7,7 +7,7 @@ from aiogram.types import Message, CallbackQuery, InaccessibleMessage
 from app.callbacks import MenuCB
 from app.i18n import Lang, i18n
 from app.keyboards.main import main_menu_kb
-from app.repositories.users import SqliteUserRepo
+from app.repositories.users import PostgresUserRepo
 
 
 router = Router(name="start")
@@ -18,7 +18,7 @@ def _menu_text(lang: Lang | None) -> str:
 
 
 @router.message(CommandStart())
-async def cmd_start(message: Message, user_repo: SqliteUserRepo) -> None:
+async def cmd_start(message: Message, user_repo: PostgresUserRepo) -> None:
     from_user = message.from_user
     if from_user is None:
         return
@@ -31,7 +31,7 @@ async def cmd_start(message: Message, user_repo: SqliteUserRepo) -> None:
 
 
 @router.message(Command("menu"))
-async def cmd_menu(message: Message, user_repo: SqliteUserRepo) -> None:
+async def cmd_menu(message: Message, user_repo: PostgresUserRepo) -> None:
     from_user = message.from_user
     if from_user is None:
         return
@@ -48,7 +48,7 @@ async def cmd_menu(message: Message, user_repo: SqliteUserRepo) -> None:
 
 @router.callback_query(MenuCB.filter(F.action == "home"))
 async def on_menu_click(
-    cb: CallbackQuery, callback_data: MenuCB, user_repo: SqliteUserRepo
+    cb: CallbackQuery, callback_data: MenuCB, user_repo: PostgresUserRepo
 ) -> None:
     user = await user_repo.ensure_user(cb.from_user.id)
     if isinstance(cb.message, InaccessibleMessage | None):

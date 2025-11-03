@@ -12,7 +12,7 @@ from app.i18n import i18n
 from app.keyboards.common import cancel_kb
 from app.keyboards.main import main_menu_kb
 from app.repositories.products import ProductsRepo, MAX_PRODUCTS_PER_USER
-from app.repositories.users import SqliteUserRepo
+from app.repositories.users import PostgresUserRepo
 from app.services.ozon_client import fetch_product_info
 from app.utils.validators import is_ozon_url, parse_price
 
@@ -28,7 +28,7 @@ class AddProduct(StatesGroup):
 @router.callback_query(MenuCB.filter(F.action == "add"))
 async def start_add(
     cb: CallbackQuery,
-    user_repo: SqliteUserRepo,
+    user_repo: PostgresUserRepo,
     products: ProductsRepo,
     state: FSMContext,
 ) -> None:
@@ -49,7 +49,7 @@ async def start_add(
     await state.clear()
     await state.set_state(AddProduct.waiting_for_url)
     await cb.message.edit_text(
-        f"<b>{i18n.t(user.language, 'add.title')}</b>\n\n{ i18n.t(user.language, 'add.ask_url') }",
+        f"<b>{i18n.t(user.language, 'add.title')}</b>\n\n{i18n.t(user.language, 'add.ask_url')}",
         reply_markup=cancel_kb(i18n, user.language),
     )
     await cb.answer()
@@ -57,7 +57,7 @@ async def start_add(
 
 @router.callback_query(ActionCB.filter(F.action == "cancel"))
 async def add_cancel(
-    cb: CallbackQuery, user_repo: SqliteUserRepo, state: FSMContext
+    cb: CallbackQuery, user_repo: PostgresUserRepo, state: FSMContext
 ) -> None:
     user = await user_repo.ensure_user(cb.from_user.id)
 
@@ -75,7 +75,7 @@ async def add_cancel(
 @router.message(AddProduct.waiting_for_url)
 async def got_url(
     message: Message,
-    user_repo: SqliteUserRepo,
+    user_repo: PostgresUserRepo,
     products: ProductsRepo,
     state: FSMContext,
 ) -> None:
@@ -151,11 +151,11 @@ async def got_url(
     ]
     if info.price_with_card is not None:
         lines.append(
-            f"\n{ i18n.t(user.language, 'add.with_card_label') }: <b>{info.price_with_card:.2f}</b>"
+            f"\n{i18n.t(user.language, 'add.with_card_label')}: <b>{info.price_with_card:.2f}</b>"
         )
     if info.price_no_card is not None:
         lines.append(
-            f"{ i18n.t(user.language, 'add.no_card_label') }: <b>{info.price_no_card:.2f}</b>"
+            f"{i18n.t(user.language, 'add.no_card_label')}: <b>{info.price_no_card:.2f}</b>"
         )
 
     ftext = "\n".join(lines)
@@ -174,7 +174,7 @@ async def got_url(
 @router.message(AddProduct.waiting_for_target_price)
 async def got_target_price(
     message: Message,
-    user_repo: SqliteUserRepo,
+    user_repo: PostgresUserRepo,
     products: ProductsRepo,
     state: FSMContext,
 ) -> None:

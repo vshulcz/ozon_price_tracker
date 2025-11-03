@@ -11,7 +11,7 @@ load_dotenv()
 @dataclass(frozen=True)
 class Settings:
     bot_token: str
-    database_path: str
+    database_url: str
     log_level: str = "INFO"
 
     @staticmethod
@@ -20,9 +20,14 @@ class Settings:
         if not token:
             raise RuntimeError("BOT_TOKEN is not set. Provide it via env or .env file.")
 
-        db_path = os.getenv("DATABASE_PATH", "./ozonbot.db")
+        db_url = os.getenv("DATABASE_URL")
+        if not db_url:
+            raise RuntimeError(
+                "DATABASE_URL is not set (e.g. postgres://user:pass@host:5432/dbname)"
+            )
+
         return Settings(
             bot_token=token,
-            database_path=db_path,
+            database_url=db_url,
             log_level=os.getenv("LOG_LEVEL", "INFO"),
         )

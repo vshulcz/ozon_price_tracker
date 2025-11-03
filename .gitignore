@@ -13,3 +13,4 @@ wheels/
 # Secrets
 .env
 data/
+pgdata/

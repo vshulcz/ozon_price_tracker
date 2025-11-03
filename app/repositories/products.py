@@ -3,10 +3,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import AsyncGenerator
 
-import aiosqlite
+from sqlalchemy import select, update, func, delete
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.models import Product as ProductModel, PriceHistory, User as UserModel
 
 
-MAX_PRODUCTS_PER_USER = 10
+MAX_PRODUCTS_PER_USER = 20
 PAGE_SIZE = 5
 
 
@@ -24,187 +27,125 @@ class Product:
 
 
 class ProductsRepo:
-    def __init__(self, conn: aiosqlite.Connection) -> None:
-        self.conn = conn
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+
+    @staticmethod
+    def _to_dto(p: ProductModel) -> Product:
+        return Product(
+            id=p.id,
+            user_id=p.user_id,
+            url=p.url,
+            title=p.title,
+            target_price=float(p.target_price),
+            current_price=float(p.current_price) if p.current_price is not None else None,
+            last_notified_price=float(p.last_notified_price) if p.last_notified_price is not None else None,
+            last_state=p.last_state,
+            is_active=bool(p.is_active),
+        )
 
     async def count_by_user(self, user_id: int) -> int:
-        cur = await self.conn.execute(
-            "SELECT COUNT(*) FROM products WHERE user_id = ?", (user_id,)
+        res = await self.session.execute(
+            select(func.count()).select_from(ProductModel).where(ProductModel.user_id == user_id)
         )
-        row = await cur.fetchone()
-        await cur.close()
-        return int(row[0]) if row else 0
+        return int(res.scalar_one())
 
-    async def list_page(
-        self, user_id: int, page: int, page_size: int = PAGE_SIZE
-    ) -> tuple[list[Product], int]:
+    async def list_page(self, user_id: int, page: int, page_size: int = PAGE_SIZE) -> tuple[list[Product], int]:
         total = await self.count_by_user(user_id)
         pages = max((total + page_size - 1) // page_size, 1)
         page = max(1, min(page, pages))
         offset = (page - 1) * page_size
 
-        cur = await self.conn.execute(
-            "SELECT id, user_id, url, title, target_price, current_price, last_notified_price, last_state, is_active "
-            "FROM products WHERE user_id = ? ORDER BY id DESC LIMIT ? OFFSET ?",
-            (user_id, page_size, offset),
+        res = await self.session.execute(
+            select(ProductModel)
+            .where(ProductModel.user_id == user_id)
+            .order_by(ProductModel.id.desc())
+            .limit(page_size)
+            .offset(offset)
         )
-        rows = await cur.fetchall()
-        await cur.close()
-        items = [
-            Product(
-                id=r[0],
-                user_id=r[1],
-                url=r[2],
-                title=r[3],
-                target_price=r[4],
-                current_price=r[5],
-                last_notified_price=r[6],
-                last_state=r[7],
-                is_active=bool(r[8]),
-            )
-            for r in rows
-        ]
+        items = [self._to_dto(p) for p in res.scalars().all()]
         return items, pages
 
     async def get_by_url(self, user_id: int, url: str) -> Product | None:
-        cur = await self.conn.execute(
-            "SELECT id, user_id, url, title, target_price, current_price, last_notified_price, last_state, is_active "
-            "FROM products WHERE user_id = ? AND url = ?",
-            (user_id, url),
+        res = await self.session.execute(
+            select(ProductModel).where(ProductModel.user_id == user_id, ProductModel.url == url)
         )
-        row = await cur.fetchone()
-        await cur.close()
-
-        if not row:
-            return None
-
-        return Product(
-            id=row[0],
-            user_id=row[1],
-            url=row[2],
-            title=row[3],
-            target_price=row[4],
-            current_price=row[5],
-            last_notified_price=row[6],
-            last_state=row[7],
-            is_active=bool(row[8]),
-        )
+        p = res.scalar_one_or_none()
+        return self._to_dto(p) if p else None
 
     async def get_by_id(self, product_id: int) -> Product | None:
-        cur = await self.conn.execute(
-            "SELECT id, user_id, url, title, target_price, current_price, last_notified_price, last_state, is_active FROM products WHERE id = ?",
-            (product_id,),
+        res = await self.session.execute(select(ProductModel).where(ProductModel.id == product_id))
+        p = res.scalar_one_or_none()
+        return self._to_dto(p) if p else None
+
+    async def create(self, *, user_id: int, url: str, title: str, target_price: float, current_price: float | None) -> int:
+        p = ProductModel(
+            user_id=user_id, url=url, title=title, target_price=target_price, current_price=current_price
         )
-        row = await cur.fetchone()
-        await cur.close()
+        self.session.add(p)
+        try:
+            await self.session.commit()
+        except Exception:
+            await self.session.rollback()
+            # возможно конфликт по (user_id, url) — вернём существующий id
+            res = await self.session.execute(
+                select(ProductModel.id).where(ProductModel.user_id == user_id, ProductModel.url == url)
+            )
+            ex_id = res.scalar_one_or_none()
+            return int(ex_id) if ex_id is not None else 0
+        await self.session.refresh(p)
+        return int(p.id)
 
-        if not row:
-            return None
-
-        return Product(
-            id=row[0],
-            user_id=row[1],
-            url=row[2],
-            title=row[3],
-            target_price=row[4],
-            current_price=row[5],
-            last_notified_price=row[6],
-            last_state=row[7],
-            is_active=bool(row[8]),
-        )
-
-    async def create(
-        self,
-        *,
-        user_id: int,
-        url: str,
-        title: str,
-        target_price: float,
-        current_price: float | None,
-    ) -> int:
-        cur = await self.conn.execute(
-            "INSERT INTO products (user_id, url, title, target_price, current_price) VALUES (?,?,?,?,?)",
-            (user_id, url, title, target_price, current_price),
-        )
-        await self.conn.commit()
-        if not isinstance(cur.lastrowid, int):
-            return 0
-
-        return int(cur.lastrowid)
-
-    async def add_price_history(
-        self, product_id: int, price: float, source: str
-    ) -> None:
-        await self.conn.execute(
-            "INSERT INTO price_history (product_id, price, source) VALUES (?,?,?)",
-            (product_id, price, source),
-        )
-        await self.conn.commit()
+    async def add_price_history(self, product_id: int, price: float, source: str) -> None:
+        ph = PriceHistory(product_id=product_id, price=price, source=source)
+        self.session.add(ph)
+        await self.session.commit()
 
     async def get_latest_price(self, product_id: int) -> tuple[float, str] | None:
-        cur = await self.conn.execute(
-            "SELECT price, observed_at FROM price_history WHERE product_id = ? ORDER BY observed_at DESC LIMIT 1",
-            (product_id,),
+        res = await self.session.execute(
+            select(PriceHistory.price, PriceHistory.observed_at)
+            .where(PriceHistory.product_id == product_id)
+            .order_by(PriceHistory.observed_at.desc())
+            .limit(1)
         )
-        row = await cur.fetchone()
-        await cur.close()
-
+        row = res.first()
         if not row:
             return None
-
-        return float(row[0]), str(row[1])
+        price, observed_at = row
+        return float(price), observed_at.isoformat()
 
     async def update_target_price(self, product_id: int, new_price: float) -> None:
-        await self.conn.execute(
-            "UPDATE products SET target_price = ?, updated_at = DATETIME('now') WHERE id = ?",
-            (new_price, product_id),
+        await self.session.execute(
+            update(ProductModel).where(ProductModel.id == product_id).values(target_price=new_price)
         )
-        await self.conn.commit()
+        await self.session.commit()
 
-    async def list_all_active(self) -> AsyncGenerator[Product]:
-        cur = await self.conn.execute(
-            "SELECT id, user_id, url, title, target_price, current_price, last_notified_price, last_state, is_active FROM products WHERE is_active = 1",
+    async def list_all_active(self) -> AsyncGenerator[Product, None]:
+        res = await self.session.stream_scalars(
+            select(ProductModel).where(ProductModel.is_active.is_(True))
         )
-        rows = await cur.fetchall()
-        await cur.close()
-        for r in rows:
-            yield Product(
-                id=r[0],
-                user_id=r[1],
-                url=r[2],
-                title=r[3],
-                target_price=r[4],
-                current_price=r[5],
-                last_notified_price=r[6],
-                last_state=r[7],
-                is_active=bool(r[8]),
+        async for p in res:
+            yield self._to_dto(p)
+
+    async def update_current_and_history(self, product_id: int, price: float, source: str = "scheduler") -> None:
+        await self.session.execute(
+            update(ProductModel)
+            .where(ProductModel.id == product_id)
+            .values(current_price=price, updated_at=func.now())
+        )
+        self.session.add(PriceHistory(product_id=product_id, price=price, source=source))
+        await self.session.commit()
+
+    async def set_last_state(self, product_id: int, state: str | None, last_notified_price: float | None) -> None:
+        await self.session.execute(
+            update(ProductModel).where(ProductModel.id == product_id).values(
+                last_state=state, last_notified_price=last_notified_price, updated_at=func.now()
             )
-
-    async def update_current_and_history(
-        self, product_id: int, price: float, source: str = "scheduler"
-    ) -> None:
-        await self.conn.execute(
-            "UPDATE products SET current_price = ?, updated_at = DATETIME('now') WHERE id = ?",
-            (price, product_id),
         )
-        await self.conn.execute(
-            "INSERT INTO price_history (product_id, price, source) VALUES (?,?,?)",
-            (product_id, price, source),
-        )
-        await self.conn.commit()
-
-    async def set_last_state(
-        self,
-        product_id: int,
-        state: str | None,
-        last_notified_price: float | None,
-    ) -> None:
-        await self.conn.execute(
-            "UPDATE products SET last_state = ?, last_notified_price = ?, updated_at = DATETIME('now') WHERE id = ?",
-            (state, last_notified_price, product_id),
-        )
-        await self.conn.commit()
+        await self.session.commit()
 
     async def delete(self, product_id: int) -> None:
-        await self.conn.execute("DELETE FROM products WHERE id = ?", (product_id,))
-        await self.conn.commit()
+        await self.session.execute(
+            delete(ProductModel).where(ProductModel.id == product_id)
+        )
+        await self.session.commit()

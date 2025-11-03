@@ -8,7 +8,7 @@ from apscheduler.triggers.cron import CronTrigger
 
 from app.i18n import Lang, i18n
 from app.repositories.products import ProductsRepo
-from app.repositories.users import SqliteUserRepo
+from app.repositories.users import PostgresUserRepo
 from app.services.ozon_client import fetch_product_info
 from app.keyboards.products import deal_reached_kb
 
@@ -61,7 +61,7 @@ async def _notify_deal_over(
 
 
 async def refresh_prices_and_notify(
-    bot: Bot, users: SqliteUserRepo, products: ProductsRepo
+    bot: Bot, users: PostgresUserRepo, products: ProductsRepo
 ) -> None:
     async for p in products.list_all_active():
         try:
@@ -113,7 +113,7 @@ async def refresh_prices_and_notify(
 
 
 def setup_scheduler(
-    bot: Bot, users: SqliteUserRepo, products: ProductsRepo
+    bot: Bot, users: PostgresUserRepo, products: ProductsRepo
 ) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     scheduler.add_job(

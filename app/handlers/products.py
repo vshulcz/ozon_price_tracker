@@ -10,7 +10,7 @@ from app.i18n import Lang, i18n
 from app.keyboards.products import products_list_kb, product_card_kb
 from app.keyboards.common import cancel_kb
 from app.repositories.products import ProductsRepo, PAGE_SIZE
-from app.repositories.users import SqliteUserRepo
+from app.repositories.users import PostgresUserRepo
 from app.utils.validators import parse_price
 
 
@@ -29,7 +29,7 @@ def _fmt_price(v: float | None) -> str:
 async def open_list(
     cb: CallbackQuery,
     callback_data: MenuCB,
-    user_repo: SqliteUserRepo,
+    user_repo: PostgresUserRepo,
     products: ProductsRepo,
 ) -> None:
     user = await user_repo.ensure_user(cb.from_user.id)
@@ -89,12 +89,12 @@ async def _render_product(
     date_part = i18n.t(lang, "product.curr.date", date=latest[1]) if latest else ""
     current_price = latest[0] if latest else prod.current_price
 
-    text = f"""<b>{i18n.t(lang, 'product.title')}</b>
+    text = f"""<b>{i18n.t(lang, "product.title")}</b>
 
-{i18n.t(lang, 'product.name', title=prod.title)}
-{i18n.t(lang, 'product.link', url=f'<a href="{prod.url}">{prod.url}</a>')}
-{i18n.t(lang, 'product.curr', price=_fmt_price(current_price), date_part=date_part)}
-{i18n.t(lang, 'product.target', price=_fmt_price(prod.target_price))}"""
+{i18n.t(lang, "product.name", title=prod.title)}
+{i18n.t(lang, "product.link", url=f'<a href="{prod.url}">{prod.url}</a>')}
+{i18n.t(lang, "product.curr", price=_fmt_price(current_price), date_part=date_part)}
+{i18n.t(lang, "product.target", price=_fmt_price(prod.target_price))}"""
 
     if isinstance(cb, CallbackQuery) and not isinstance(
         cb.message, InaccessibleMessage | None
@@ -113,7 +113,7 @@ async def _render_product(
 async def open_product(
     cb: CallbackQuery,
     callback_data: ProductCB,
-    user_repo: SqliteUserRepo,
+    user_repo: PostgresUserRepo,
     products: ProductsRepo,
 ) -> None:
     user = await user_repo.ensure_user(cb.from_user.id)
@@ -131,7 +131,7 @@ async def open_product(
 async def back_to_list(
     cb: CallbackQuery,
     callback_data: ProductCB,
-    user_repo: SqliteUserRepo,
+    user_repo: PostgresUserRepo,
     products: ProductsRepo,
 ) -> None:
     user = await user_repo.ensure_user(cb.from_user.id)
@@ -165,7 +165,7 @@ async def back_to_list(
 async def edit_target_start(
     cb: CallbackQuery,
     callback_data: ProductCB,
-    user_repo: SqliteUserRepo,
+    user_repo: PostgresUserRepo,
     state: FSMContext,
 ) -> None:
     user = await user_repo.ensure_user(cb.from_user.id)
@@ -185,7 +185,7 @@ async def edit_target_start(
 )
 async def edit_target_cancel(
     cb: CallbackQuery,
-    user_repo: SqliteUserRepo,
+    user_repo: PostgresUserRepo,
     products: ProductsRepo,
     state: FSMContext,
 ) -> None:
@@ -211,7 +211,7 @@ async def edit_target_cancel(
 @router.message(EditTarget.waiting_for_price)
 async def edit_target_save(
     message: Message,
-    user_repo: SqliteUserRepo,
+    user_repo: PostgresUserRepo,
     products: ProductsRepo,
     state: FSMContext,
 ) -> None:
@@ -264,7 +264,7 @@ async def edit_target_save(
 async def delete_product(
     cb: CallbackQuery,
     callback_data: ProductCB,
-    user_repo: SqliteUserRepo,
+    user_repo: PostgresUserRepo,
     products: ProductsRepo,
 ) -> None:
     user = await user_repo.ensure_user(cb.from_user.id)

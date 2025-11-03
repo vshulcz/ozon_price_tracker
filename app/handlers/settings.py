@@ -6,16 +6,16 @@ from aiogram.types import CallbackQuery, InaccessibleMessage
 from app.callbacks import MenuCB, SettingsCB
 from app.i18n import i18n
 from app.keyboards.main import main_menu_kb, settings_kb
-from app.repositories.users import SqliteUserRepo
+from app.repositories.users import PostgresUserRepo
 
 
 router = Router(name="settings")
 
 
 @router.callback_query(MenuCB.filter(F.action == "settings"))
-async def open_settings(cb: CallbackQuery, user_repo: SqliteUserRepo) -> None:
+async def open_settings(cb: CallbackQuery, user_repo: PostgresUserRepo) -> None:
     user = await user_repo.ensure_user(cb.from_user.id)
-    text = f"<b>{i18n.t(user.language, 'settings.title')}</b>\n\n{ i18n.t(user.language, 'settings.choose_lang') }"
+    text = f"<b>{i18n.t(user.language, 'settings.title')}</b>\n\n{i18n.t(user.language, 'settings.choose_lang')}"
 
     if isinstance(cb.message, InaccessibleMessage | None):
         return
@@ -26,7 +26,7 @@ async def open_settings(cb: CallbackQuery, user_repo: SqliteUserRepo) -> None:
 
 @router.callback_query(SettingsCB.filter(F.action == "lang"))
 async def change_lang(
-    cb: CallbackQuery, callback_data: SettingsCB, user_repo: SqliteUserRepo
+    cb: CallbackQuery, callback_data: SettingsCB, user_repo: PostgresUserRepo
 ) -> None:
     await user_repo.ensure_user(cb.from_user.id)
     new_lang = (
@@ -47,7 +47,7 @@ async def change_lang(
 
 
 @router.callback_query(SettingsCB.filter(F.action == "back"))
-async def settings_back(cb: CallbackQuery, user_repo: SqliteUserRepo) -> None:
+async def settings_back(cb: CallbackQuery, user_repo: PostgresUserRepo) -> None:
     lang = await user_repo.get_language(cb.from_user.id)
     text = f"<b>{i18n.t(lang, 'start.title')}</b>\n\n" + i18n.t(lang, "start.body")
 

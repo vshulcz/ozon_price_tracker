@@ -20,8 +20,4 @@ COPY . .
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen
 
-ENV DATABASE_PATH=/app/data/ozonbot.db
-
-RUN mkdir -p /app/data
-
 CMD ["python", "-m", "app.bot"]
