@@ -76,6 +76,10 @@ def deal_reached_kb(
 ) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
     b.button(
+        text=i18n.t(lang, "btn.open"), 
+        url=url,
+    )
+    b.button(
         text=i18n.t(lang, "btn.delete"),
         callback_data=ProductCB(action="delete", id=product_id).pack(),
     )

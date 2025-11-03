@@ -88,6 +88,7 @@ i18n = I18N(
 Сейчас: <b>{current}</b> > цель <b>{target}</b>.""",
             "notif.delete.ok": "Товар удалён и больше не отслеживается.",
             "btn.delete": "🗑️ Удалить товар",
+            "btn.open": "🔗 Открыть товар",
             # Common buttons
             "btn.cancel": "❌ Отмена",
             # Errors
@@ -159,6 +160,7 @@ Now: <b>{current}</b> ≤ target <b>{target}</b>.""",
 Now: <b>{current}</b> > target <b>{target}</b>.""",
             "notif.delete.ok": "Product removed and will not be tracked anymore.",
             "btn.delete": "🗑️ Remove product",
+            "btn.open": "🔗 Open product",
             # Common buttons
             "btn.cancel": "❌ Cancel",
             # Errors
