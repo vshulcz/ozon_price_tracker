@@ -16,7 +16,12 @@ async_session: async_sessionmaker[AsyncSession] | None = None
 
 
 async def init_engine_and_schema(dsn: str) -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
-    async_engine = create_async_engine(dsn, pool_size=10, max_overflow=20)
+    async_engine = create_async_engine(
+        dsn,
+        pool_pre_ping=True,
+        pool_size=10,
+        max_overflow=20,
+    )
     async_session = async_sessionmaker(async_engine, expire_on_commit=False)
 
     async with async_engine.begin() as conn:

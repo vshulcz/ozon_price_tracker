@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from aiogram.types import CallbackQuery, Message, User
+from aiogram.types import CallbackQuery, Message
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.i18n import Lang, i18n
 from app.repositories.users import PostgresUserRepo
@@ -13,8 +15,8 @@ logger = logging.getLogger(__name__)
 
 
 class ErrorsMiddleware:
-    def __init__(self, user_repo: PostgresUserRepo | None = None) -> None:
-        self.user_repo = user_repo
+    def __init__(self, session_maker: async_sessionmaker[AsyncSession] | None = None) -> None:
+        self.session_maker = session_maker
 
     async def __call__(
         self,
@@ -28,15 +30,21 @@ class ErrorsMiddleware:
             logger.exception("Unhandled error")
 
         lang: Lang = "ru"
-        try:
-            repo: PostgresUserRepo | None = data.get("user_repo") or self.user_repo
-            user_id = None
-            if isinstance(event, Message | CallbackQuery) and isinstance(event.from_user, User):
-                user_id = event.from_user.id
-            if repo and user_id:
-                lang = (await repo.ensure_user(user_id)).language
-        except Exception:
-            logger.exception("Failed to determine user language")
+
+        tg_id = None
+        with contextlib.suppress(Exception):
+            fu = getattr(event, "from_user", None)
+            tg_id = getattr(fu, "id", None)
+
+        if tg_id and self.session_maker:
+            try:
+                async with self.session_maker() as session:
+                    user_repo = PostgresUserRepo(session)
+                    user = await user_repo.get_by_tg_id(tg_id)
+                    if user and user.language in ("ru", "en"):
+                        lang = user.language
+            except Exception:
+                logger.exception("Failed to determine user language")
 
         text = i18n.t(lang, "error.unexpected")
         try:

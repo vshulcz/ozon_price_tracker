@@ -35,7 +35,7 @@ class PostgresUserRepo:
         await self.session.refresh(u)
         return self._to_dto(u)
 
-    async def _get_by_tg_id(self, tg_user_id: int) -> UserDTO | None:
+    async def get_by_tg_id(self, tg_user_id: int) -> UserDTO | None:
         res = await self.session.execute(select(User).where(User.tg_user_id == tg_user_id))
         u = res.scalar_one_or_none()
         return self._to_dto(u) if u else None

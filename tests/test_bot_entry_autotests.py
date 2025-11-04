@@ -4,6 +4,7 @@ from typing import Any, cast
 import pytest
 
 import app.bot as botmod
+from app.middlewares.db_session import DBSessionMiddleware
 
 
 class _Sentinel:
@@ -98,20 +99,36 @@ class FakeScheduler:
 
 
 @pytest.mark.asyncio
-async def test_di_repository_middleware_injects_and_calls(monkeypatch):
-    users = object()
-    products = object()
-    mw = botmod.DIRepositoryMiddleware(
-        user_repo=cast(Any, users), products_repo=cast(Any, products)
-    )
+async def test_db_session_middleware_injects_fresh_repos(monkeypatch):
+    session = _FakeSession()
+    session_maker = make_session_maker(session)
+    created = {}
+
+    class _UserRepoFake:
+        def __init__(self, s):
+            created["user_repo_session"] = s
+            self.session = s
+
+    class _ProductsRepoFake:
+        def __init__(self, s):
+            created["products_repo_session"] = s
+            self.session = s
+
+    monkeypatch.setattr("app.middlewares.db_session.PostgresUserRepo", _UserRepoFake)
+    monkeypatch.setattr("app.middlewares.db_session.ProductsRepo", _ProductsRepoFake)
+
+    mw = DBSessionMiddleware(cast(Any, session_maker))
 
     async def handler(event, data):
-        assert data["user_repo"] is users
-        assert data["products"] is products
+        assert "user_repo" in data and "products" in data
+        assert data["user_repo"].session is session
+        assert data["products"].session is session
         return _Sentinel
 
     res = await mw(handler, event={"any": "thing"}, data={})
     assert res is _Sentinel
+    assert created["user_repo_session"] is session
+    assert created["products_repo_session"] is session
 
 
 @pytest.mark.asyncio
@@ -149,9 +166,9 @@ async def test_main_wires_everything_and_cleans_up(monkeypatch):
 
     scheduler = FakeScheduler()
 
-    def _setup_scheduler(bot, user_repo, products_repo):
+    def _setup_scheduler(bot, session_maker_arg):
         assert bot.token == _S.bot_token
-        assert user_repo is not None and products_repo is not None
+        assert session_maker_arg is session_maker
         return scheduler
 
     monkeypatch.setattr(botmod, "setup_scheduler", _setup_scheduler)
