@@ -6,7 +6,7 @@ from app.middlewares.errors import ErrorsMiddleware
 
 @pytest.mark.asyncio
 async def test_errors_middleware_on_message(users_repo, dummy_message, monkeypatch):
-    mw = ErrorsMiddleware(user_repo=users_repo)
+    mw = ErrorsMiddleware(session_maker=None)
     monkeypatch.setattr("app.middlewares.errors.Message", DummyMessage, raising=False)
 
     async def bad_handler(event, data):
@@ -19,7 +19,7 @@ async def test_errors_middleware_on_message(users_repo, dummy_message, monkeypat
 
 @pytest.mark.asyncio
 async def test_errors_middleware_on_callback(users_repo, dummy_cb, monkeypatch):
-    mw = ErrorsMiddleware(user_repo=users_repo)
+    mw = ErrorsMiddleware(session_maker=None)
     monkeypatch.setattr("app.middlewares.errors.CallbackQuery", DummyCallbackQuery, raising=False)
 
     async def bad_handler(event, data):

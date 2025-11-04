@@ -5,6 +5,7 @@ import logging
 from aiogram import Bot
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.i18n import Lang, i18n
 from app.keyboards.products import deal_reached_kb
@@ -60,59 +61,61 @@ async def _notify_deal_over(
 
 
 async def refresh_prices_and_notify(
-    bot: Bot, users: PostgresUserRepo, products: ProductsRepo
+    bot: Bot,
+    session_maker: async_sessionmaker[AsyncSession],
 ) -> None:
-    async for p in products.list_all_active():
-        try:
-            info = await fetch_product_info(p.url)
-            chosen = info.price_for_compare
-            if chosen is None:
-                continue
+    async with session_maker() as session:
+        users = PostgresUserRepo(session)
+        products = ProductsRepo(session)
+        async for p in products.list_all_active():
+            try:
+                info = await fetch_product_info(p.url)
+                chosen = info.price_for_compare
+                if chosen is None:
+                    continue
+                current = float(chosen)
+                await products.update_current_and_history(p.id, current, source="scheduler")
+                user = await users.get_by_id(p.user_id)
+                if not user:
+                    continue
 
-            current = float(chosen)
-            await products.update_current_and_history(p.id, current, source="scheduler")
+                target = float(p.target_price)
+                prev_state = p.last_state
 
-            user = await users.get_by_id(p.user_id)
-            if not user:
-                continue
-
-            target = float(p.target_price)
-            prev_state = p.last_state
-
-            if current <= target:
-                if prev_state != "below":
-                    await _notify_deal_reached(
-                        bot,
-                        user_tg_id=user.tg_user_id,
-                        lang=user.language,
-                        product_id=p.id,
-                        title=p.title,
-                        url=p.url,
-                        current=current,
-                        target=target,
-                    )
-                    await products.set_last_state(p.id, "below", last_notified_price=current)
-            else:
-                if prev_state == "below":
-                    await _notify_deal_over(
-                        bot,
-                        user_tg_id=user.tg_user_id,
-                        lang=user.language,
-                        title=p.title,
-                        current=current,
-                        target=target,
-                    )
-                    await products.set_last_state(p.id, "above", last_notified_price=None)
-        except Exception as e:
-            logger.exception("Failed to refresh product %s: %s", p.id, e)
+                if current <= target:
+                    if prev_state != "below":
+                        await _notify_deal_reached(
+                            bot,
+                            user_tg_id=user.tg_user_id,
+                            lang=user.language,
+                            product_id=p.id,
+                            title=p.title,
+                            url=p.url,
+                            current=current,
+                            target=target,
+                        )
+                        await products.set_last_state(p.id, "below", last_notified_price=current)
+                else:
+                    if prev_state == "below":
+                        await _notify_deal_over(
+                            bot,
+                            user_tg_id=user.tg_user_id,
+                            lang=user.language,
+                            title=p.title,
+                            current=current,
+                            target=target,
+                        )
+                        await products.set_last_state(p.id, "above", last_notified_price=None)
+            except Exception as e:
+                logger.exception("Failed to refresh product %s: %s", p.id, e)
 
 
-def setup_scheduler(bot: Bot, users: PostgresUserRepo, products: ProductsRepo) -> AsyncIOScheduler:
+def setup_scheduler(bot: Bot, session_maker: async_sessionmaker[AsyncSession]) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         refresh_prices_and_notify,
         CronTrigger(hour="9,15,21", minute=0),
-        kwargs={"bot": bot, "users": users, "products": products},
+        kwargs={"bot": bot, "session_maker": session_maker},
     )
     scheduler.start()
     return scheduler
