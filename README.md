@@ -1,24 +1,18 @@
 # Ozon Price Tracker Bot
 
+![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/vshulcz/ozon_price_tracker?sort=semver)
+[![CI](https://github.com/vshulcz/ozon_price_tracker/actions/workflows/ci.yml/badge.svg)](../../actions)
+[![codecov](https://codecov.io/gh/vshulcz/ozon_price_tracker/branch/main/graph/badge.svg)](https://codecov.io/gh/vshulcz/ozon_price_tracker)
+![license](https://img.shields.io/badge/license-MIT-blue)
+![python](https://img.shields.io/badge/python-3.11+-blue)
+
 A Telegram bot that tracks prices of Ozon products. Users add a product link, set a target price, and the bot checks prices three times a day and notifies when the target is reached.
 
-
-## Run
-
-Prepare .env (set BOT_TOKEN).
-
-### Locally
+## Quick start (Docker)
 
 ```sh
-uv sync && source .venv/bin/activate
-python -m playwright install chromium
-python -m app.bot
-```
-
-### Docker
-
-```sh
-docker compose up --build -d
+cp .env.example .env # set BOT_TOKEN
+make up && make logs
 ```
 
 ## Usage Flow

@@ -3,7 +3,6 @@ from __future__ import annotations
 import re
 from decimal import Decimal, InvalidOperation
 
-
 _OZON_RE = re.compile(r"^https?://(www\.)?ozon\.[^/]+/.+", re.IGNORECASE)
 
 

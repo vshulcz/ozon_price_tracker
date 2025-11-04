@@ -3,39 +3,66 @@ IMAGE          ?= $(PROJECT):latest
 DC             ?= docker compose
 COMPOSE_FILE   ?= docker-compose.yml
 
-.PHONY: build
+PYTEST_FLAGS   ?= -q -ra --maxfail=1
+COV_FLAGS      ?= --cov=app --cov-report=xml --cov-report=term-missing
+JUNIT_FILE     ?= pytest.xml
+
+.PHONY: build up down restart logs ps sh-bot sh-pg psql \
+        format lint type test unit cov cov-html test-junit precommit ci clean
+
 build:
 	$(DC) -f $(COMPOSE_FILE) build
 
-.PHONY: up
 up:
 	$(DC) -f $(COMPOSE_FILE) up -d
 
-.PHONY: down
 down:
 	$(DC) -f $(COMPOSE_FILE) down
 
-.PHONY: restart
 restart:
 	$(DC) -f $(COMPOSE_FILE) restart bot
 
-.PHONY: logs
 logs:
 	$(DC) -f $(COMPOSE_FILE) logs -f bot
 
-.PHONY: ps
 ps:
 	$(DC) -f $(COMPOSE_FILE) ps
 
-.PHONY: sh-bot
 sh-bot:
 	$(DC) -f $(COMPOSE_FILE) exec bot bash -lc 'bash || sh'
 
-.PHONY: sh-pg
 sh-pg:
 	$(DC) -f $(COMPOSE_FILE) exec postgres sh
 
-.PHONY: psql
-psql: 
+psql:
 	$(DC) -f $(COMPOSE_FILE) exec -e PGPASSWORD=$${POSTGRES_PASSWORD} postgres \
 		psql -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+
+format:
+	uv run ruff format .
+
+lint:
+	uv run ruff check .
+
+type:
+	uv run mypy -p app
+
+test:
+	PYTHONPATH=. uv run pytest $(PYTEST_FLAGS)
+
+cov:
+	PYTHONPATH=. uv run pytest $(PYTEST_FLAGS) $(COV_FLAGS)
+
+cov-html:
+	PYTHONPATH=. uv run pytest $(PYTEST_FLAGS) $(COV_FLAGS) --cov-report=html
+
+test-junit:
+	PYTHONPATH=. uv run pytest $(PYTEST_FLAGS) $(COV_FLAGS) --junitxml=$(JUNIT_FILE)
+
+precommit:
+	uv run pre-commit run --all-files --show-diff-on-failure
+
+ci: format lint type test-junit
+
+clean:
+	rm -rf .pytest_cache .mypy_cache .ruff_cache .coverage coverage.xml htmlcov pytest.xml .venv

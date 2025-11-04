@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass
-from dotenv import load_dotenv
 
+from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -15,7 +15,7 @@ class Settings:
     log_level: str = "INFO"
 
     @staticmethod
-    def from_env() -> "Settings":
+    def from_env() -> Settings:
         token = os.getenv("BOT_TOKEN")
         if not token:
             raise RuntimeError("BOT_TOKEN is not set. Provide it via env or .env file.")

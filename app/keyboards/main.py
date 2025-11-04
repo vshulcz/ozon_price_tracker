@@ -32,8 +32,6 @@ def settings_kb(i18n: I18N, lang: Lang | None) -> InlineKeyboardMarkup:
         text=i18n.t(lang, "settings.lang.en"),
         callback_data=SettingsCB(action="lang", value="en").pack(),
     )
-    b.button(
-        text=i18n.t(lang, "menu.back"), callback_data=SettingsCB(action="back").pack()
-    )
+    b.button(text=i18n.t(lang, "menu.back"), callback_data=SettingsCB(action="back").pack())
     b.adjust(1, 1, 1)
     return b.as_markup()

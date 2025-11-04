@@ -2,20 +2,19 @@ from __future__ import annotations
 
 from decimal import Decimal
 
-from aiogram import Router, F
-from aiogram.fsm.state import State, StatesGroup
+from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
-from aiogram.types import CallbackQuery, Message, InaccessibleMessage
+from aiogram.fsm.state import State, StatesGroup
+from aiogram.types import CallbackQuery, InaccessibleMessage, Message
 
-from app.callbacks import MenuCB, ActionCB
+from app.callbacks import ActionCB, MenuCB
 from app.i18n import i18n
 from app.keyboards.common import cancel_kb
 from app.keyboards.main import main_menu_kb
-from app.repositories.products import ProductsRepo, MAX_PRODUCTS_PER_USER
+from app.repositories.products import MAX_PRODUCTS_PER_USER, ProductsRepo
 from app.repositories.users import PostgresUserRepo
 from app.services.ozon_client import fetch_product_info
 from app.utils.validators import is_ozon_url, parse_price
-
 
 router = Router(name="add_product")
 
@@ -56,9 +55,7 @@ async def start_add(
 
 
 @router.callback_query(ActionCB.filter(F.action == "cancel"))
-async def add_cancel(
-    cb: CallbackQuery, user_repo: PostgresUserRepo, state: FSMContext
-) -> None:
+async def add_cancel(cb: CallbackQuery, user_repo: PostgresUserRepo, state: FSMContext) -> None:
     user = await user_repo.ensure_user(cb.from_user.id)
 
     if isinstance(cb.message, InaccessibleMessage | None):
@@ -103,9 +100,7 @@ async def got_url(
         return
 
     waiting_text = i18n.t(user.language, "add.fetching")
-    temp_msg = await message.answer(
-        waiting_text, reply_markup=cancel_kb(i18n, user.language)
-    )
+    temp_msg = await message.answer(waiting_text, reply_markup=cancel_kb(i18n, user.language))
 
     await state.update_data(
         temp_message_chat_id=temp_msg.chat.id, temp_message_id=temp_msg.message_id
@@ -117,9 +112,7 @@ async def got_url(
         err_text = i18n.t(user.language, "add.fetch_blocked")
         try:
             if (await state.get_state()) == AddProduct.waiting_for_url.state:
-                await temp_msg.edit_text(
-                    err_text, reply_markup=cancel_kb(i18n, user.language)
-                )
+                await temp_msg.edit_text(err_text, reply_markup=cancel_kb(i18n, user.language))
         except Exception:
             await message.answer(err_text, reply_markup=cancel_kb(i18n, user.language))
         return
@@ -127,9 +120,7 @@ async def got_url(
         err_text = i18n.t(user.language, "add.fetch_error")
         try:
             if (await state.get_state()) == AddProduct.waiting_for_url.state:
-                await temp_msg.edit_text(
-                    err_text, reply_markup=cancel_kb(i18n, user.language)
-                )
+                await temp_msg.edit_text(err_text, reply_markup=cancel_kb(i18n, user.language))
         except Exception:
             await message.answer(err_text, reply_markup=cancel_kb(i18n, user.language))
         return
@@ -144,11 +135,7 @@ async def got_url(
         current_price=str(chosen) if chosen is not None else None,
     )
 
-    lines = [
-        i18n.t(
-            user.language, "add.found", title=info.title, price=f"{(chosen or 0):.2f}"
-        )
-    ]
+    lines = [i18n.t(user.language, "add.found", title=info.title, price=f"{(chosen or 0):.2f}")]
     if info.price_with_card is not None:
         lines.append(
             f"\n{i18n.t(user.language, 'add.with_card_label')}: <b>{info.price_with_card:.2f}</b>"

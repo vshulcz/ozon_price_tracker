@@ -9,7 +9,5 @@ from app.i18n import I18N, Lang
 
 def cancel_kb(i18n: I18N, lang: Lang | None) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
-    b.button(
-        text=i18n.t(lang, "btn.cancel"), callback_data=ActionCB(action="cancel").pack()
-    )
+    b.button(text=i18n.t(lang, "btn.cancel"), callback_data=ActionCB(action="cancel").pack())
     return b.as_markup()

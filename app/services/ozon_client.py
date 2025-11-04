@@ -1,16 +1,15 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import json
 import platform
 import re
-import asyncio
-import contextlib
 from dataclasses import dataclass
 from decimal import Decimal
 from urllib.parse import quote, urlparse, urlsplit, urlunsplit
 
-from playwright.async_api import async_playwright, Page, Browser, BrowserContext
-
+from playwright.async_api import Browser, BrowserContext, Page, async_playwright
 
 FIRST_PARTY = ("ozon.ru", "ozone.ru", "cdn1.ozone.ru", "cdn2.ozone.ru", "ir.ozone.ru")
 _WIDGET_PRICE_KEYS = ("webPrice", "webProductPrices", "webSale")
@@ -80,7 +79,7 @@ class _Browser:
             prof = _os_profile()
             cls._pl = await async_playwright().start()
 
-            launch_kwargs = dict(headless=True, args=prof["args"])
+            launch_kwargs = {"headless": True, "args": prof["args"]}
             if prof["channel"]:
                 try:
                     launch_kwargs["channel"] = prof["channel"]
@@ -99,14 +98,16 @@ class _Browser:
                 color_scheme="light",
                 service_workers="block",
                 extra_http_headers={
-                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+                    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                    "image/avif,image/webp,*/*;q=0.8",
                     "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
                 },
             )
             await cls._ctx.add_init_script(f"""
                 Object.defineProperty(navigator, 'webdriver', {{ get: () => undefined }});
                 try {{
-                  Object.defineProperty(navigator, 'platform', {{ get: () => '{prof["platform_js"]}' }});
+                  Object.defineProperty(navigator, 'platform',
+                                           {{ get: () => '{prof["platform_js"]}' }});
                 }} catch (e) {{}}
             """)
             await cls._ctx.route("**/*", _route_blocker)
@@ -144,9 +145,7 @@ async def _route_blocker(route, request):
     return await route.continue_()
 
 
-async def _pass_ozon_challenge(
-    ctx: BrowserContext, page: Page, timeout_ms=45000
-) -> bool:
+async def _pass_ozon_challenge(ctx: BrowserContext, page: Page, timeout_ms=45000) -> bool:
     await page.goto(
         "https://www.ozon.ru/?abt_att=1&__rr=1",
         wait_until="domcontentloaded",
@@ -279,9 +278,7 @@ def _pick_prices(data: dict) -> tuple[Decimal | None, Decimal | None]:
             product = (obj.get("cellTrackingInfo") or {}).get("product", {}) or obj.get(
                 "product", {}
             )
-            cand_card = (
-                cand_card or product.get("cardPrice") or product.get("finalPrice")
-            )
+            cand_card = cand_card or product.get("cardPrice") or product.get("finalPrice")
             cand_no = cand_no or product.get("price") or product.get("originalPrice")
 
         wc = (
@@ -306,8 +303,7 @@ def _pick_prices(data: dict) -> tuple[Decimal | None, Decimal | None]:
     if not (with_card and no_card):
         dump = json.dumps(data, ensure_ascii=False)
         prices = [
-            _normalize_price(m)
-            for m in re.findall(r"(\d[\d\s\u00A0\u2009\u202F]*)\s*₽", dump)
+            _normalize_price(m) for m in re.findall(r"(\d[\d\s\u00A0\u2009\u202F]*)\s*₽", dump)
         ]
         prices = [p for p in prices if p]
         if prices:

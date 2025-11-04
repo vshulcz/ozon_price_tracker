@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from app.callbacks import MenuCB, ProductCB
@@ -18,9 +18,7 @@ def products_list_kb(
     kb = InlineKeyboardBuilder()
 
     for pid, title in items:
-        kb.button(
-            text=title, callback_data=ProductCB(action="open", id=pid, page=page).pack()
-        )
+        kb.button(text=title, callback_data=ProductCB(action="open", id=pid, page=page).pack())
         kb.adjust(1)
 
     nav_buttons: list[InlineKeyboardButton] = []
@@ -53,9 +51,7 @@ def product_card_kb(
 ) -> InlineKeyboardMarkup:
     b = InlineKeyboardBuilder()
     b.button(
-        text="✏️ Изменить целевую цену"
-        if (lang or "ru") == "ru"
-        else "✏️ Edit target price",
+        text="✏️ Изменить целевую цену" if (lang or "ru") == "ru" else "✏️ Edit target price",
         callback_data=ProductCB(action="edit", id=product_id, page=page).pack(),
     )
     b.button(

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from aiogram.filters.callback_data import CallbackData
 from typing import Literal
+
+from aiogram.filters.callback_data import CallbackData
 
 
 class MenuCB(CallbackData, prefix="menu"):

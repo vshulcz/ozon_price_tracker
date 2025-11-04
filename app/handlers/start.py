@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 from aiogram import F, Router
-from aiogram.filters import CommandStart, Command
-from aiogram.types import Message, CallbackQuery, InaccessibleMessage
+from aiogram.filters import Command, CommandStart
+from aiogram.types import CallbackQuery, InaccessibleMessage, Message
 
 from app.callbacks import MenuCB
 from app.i18n import Lang, i18n
 from app.keyboards.main import main_menu_kb
 from app.repositories.users import PostgresUserRepo
-
 
 router = Router(name="start")
 
@@ -38,10 +37,7 @@ async def cmd_menu(message: Message, user_repo: PostgresUserRepo) -> None:
 
     user = await user_repo.ensure_user(from_user.id)
     await message.answer(
-        (
-            f"<b>{i18n.t(user.language, 'start.title')}</b>\n"
-            + i18n.t(user.language, "start.body")
-        ),
+        (f"<b>{i18n.t(user.language, 'start.title')}</b>\n" + i18n.t(user.language, "start.body")),
         reply_markup=main_menu_kb(i18n, user.language),
     )
 

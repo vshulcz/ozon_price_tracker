@@ -7,11 +7,10 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 
 from app.i18n import Lang, i18n
+from app.keyboards.products import deal_reached_kb
 from app.repositories.products import ProductsRepo
 from app.repositories.users import PostgresUserRepo
 from app.services.ozon_client import fetch_product_info
-from app.keyboards.products import deal_reached_kb
-
 
 logger = logging.getLogger(__name__)
 
@@ -26,7 +25,7 @@ async def _notify_deal_reached(
     url: str,
     current: float,
     target: float,
-):
+) -> None:
     text = i18n.t(
         lang,
         "notif.deal_reached",
@@ -49,7 +48,7 @@ async def _notify_deal_over(
     title: str,
     current: float,
     target: float,
-):
+) -> None:
     text = i18n.t(
         lang,
         "notif.deal_over",
@@ -92,9 +91,7 @@ async def refresh_prices_and_notify(
                         current=current,
                         target=target,
                     )
-                    await products.set_last_state(
-                        p.id, "below", last_notified_price=current
-                    )
+                    await products.set_last_state(p.id, "below", last_notified_price=current)
             else:
                 if prev_state == "below":
                     await _notify_deal_over(
@@ -105,16 +102,12 @@ async def refresh_prices_and_notify(
                         current=current,
                         target=target,
                     )
-                    await products.set_last_state(
-                        p.id, "above", last_notified_price=None
-                    )
+                    await products.set_last_state(p.id, "above", last_notified_price=None)
         except Exception as e:
             logger.exception("Failed to refresh product %s: %s", p.id, e)
 
 
-def setup_scheduler(
-    bot: Bot, users: PostgresUserRepo, products: ProductsRepo
-) -> AsyncIOScheduler:
+def setup_scheduler(bot: Bot, users: PostgresUserRepo, products: ProductsRepo) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         refresh_prices_and_notify,
