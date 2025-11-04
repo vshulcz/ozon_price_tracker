@@ -13,3 +13,73 @@ dependencies = [
     "psycopg-pool>=3.2",
     "sqlalchemy>=2.0.44",
 ]
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.4.2",
+    "pytest-asyncio>=0.23",
+    "pytest-cov",
+    "coverage[toml]",
+    "ruff>=0.6",
+    "black>=24.0",
+    "isort>=5.12",
+    "mypy>=1.10",
+    "types-python-dateutil",
+    "aiosqlite",
+    "sqlalchemy>=2.0",
+]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+fix = true
+select = ["E","F","I","B","UP","N","S","C4","PLE","PLW","RUF"]
+ignore = [
+  "S101",
+]
+exclude = ["uv.lock"]
+
+[tool.pytest.ini_options]
+addopts = "-q"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+xfail_strict = true
+
+[tool.coverage.run]
+branch = true
+source = ["app"]
+
+[tool.coverage.report]
+show_missing = true
+fail_under = 80
+
+[tool.mypy]
+python_version = "3.11"
+packages = ["app"]
+disallow_untyped_defs = true
+check_untyped_defs = true
+no_implicit_optional = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = "tests.*"
+disallow_untyped_defs = false
+check_untyped_defs = false
+warn_unreachable = false
+
+[[tool.mypy.overrides]]
+module = "app.callbacks"
+disable_error_code = ["call-arg"]
+
+[[tool.mypy.overrides]]
+module = "app.handlers.*"
+warn_unreachable = false
+
+[[tool.mypy.overrides]]
+module = "app.services.ozon_client"
+disallow_untyped_defs = false
+check_untyped_defs = false
+disable_error_code = ["no-any-return"]

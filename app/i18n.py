@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, Literal
-
+from typing import Any, Literal
 
 Lang = Literal["ru", "en"]
 
 
 @dataclass(frozen=True)
 class I18N:
-    messages: Dict[str, Dict[str, str]]
+    messages: dict[str, dict[str, str]]
     default_lang: Lang = "ru"
 
-    def t(self, lang: Lang | None, key: str, /, **params) -> str:
+    def t(self, lang: Lang | None, key: str, /, **params: Any) -> str:
         lang_key = lang if lang in ("ru", "en") else self.default_lang
         template = self.messages.get(lang_key, {}).get(key)
         if template is None:
@@ -26,25 +25,29 @@ i18n = I18N(
             # App
             "app.name": "Трекер цен Ozon",
             # Menu
-            "menu.add": "➕ Добавить товар",
+            "menu.add": "➕ Добавить товар",  # noqa: RUF001
             "menu.list": "📋 Список товаров",
             "menu.settings": "⚙️ Настройки",
-            "menu.back": "🏠 В главное меню",
+            "menu.back": "🏠 В главное меню",  # noqa: RUF001
             # Start
             "start.title": "Привет! Я — бот для отслеживания цен на Ozon.",
             "start.body": (
-                "Добавляй товары по ссылке, указывай целевую цену — и я оповещу, когда цена станет выгодной.\n\n"
+                "Добавляй товары по ссылке, указывай целевую цену — и я оповещу, "
+                "когда цена станет выгодной.\n\n"
                 "Доступные разделы:\n"
-                "• ➕ Добавить товар — начать мастер добавления\n"
+                "• ➕ Добавить товар — начать мастер добавления\n"  # noqa: RUF001
                 "• 📋 Список товаров — посмотреть и управлять\n"
                 "• ⚙️ Настройки — язык и параметры"
             ),
             # Add Product
             "add.title": "Добавление товара",
             "add.ask_url": "Пришлите ссылку на товар Ozon",
-            "add.invalid_url": "Кажется, это не ссылка Ozon. Отправьте корректный URL вида https://www.ozon...",
-            "add.duplicate": "Этот товар уже добавлен. Вы можете изменить целевую цену из списка товаров.",
-            "add.limit_reached": "Достигнут лимит в 10 товаров. Обратитесь к администратору для повышения лимита.",
+            "add.invalid_url": "Кажется, это не ссылка Ozon. "
+            "Отправьте корректный URL вида https://www.ozon...",
+            "add.duplicate": "Этот товар уже добавлен. "
+            "Вы можете изменить целевую цену из списка товаров.",
+            "add.limit_reached": "Достигнут лимит в 20 товаров. "
+            "Обратитесь к администратору для повышения лимита.",
             "add.found": """Нашёл товар: <b>{title}</b>
 Текущая цена: <b>{price}</b>""",
             "add.ask_target": "Укажите целевую цену (число)",
@@ -55,14 +58,14 @@ i18n = I18N(
 Текущая цена: <b>{current}</b>
 Целевая цена: <b>{target}</b>""",
             "add.cancel": "Добавление отменено. Возвращаю в меню.",
-            "add.fetching": "Подождите, ищу информацию о товаре на Ozon…",
-            "add.fetch_error": "Не удалось получить данные с Ozon. Попробуйте позже.",
+            "add.fetching": "Подождите, ищу информацию о товаре на Ozon...",  # noqa: RUF001
+            "add.fetch_error": "Не удалось получить данные с Ozon. Попробуйте позже.",  # noqa: RUF001
             "add.fetch_blocked": "Ozon блокирует доступ (antibot). Попробуйте позже.",
-            "add.with_card_label": "С картой",
+            "add.with_card_label": "С картой",  # noqa: RUF001
             "add.no_card_label": "Без карты",
             # List and product card
             "list.title": "Ваши товары (стр. {page}/{pages})",
-            "list.empty": 'У вас пока нет товаров. Нажмите "Добавить товар" в главном меню.',
+            "list.empty": 'У вас пока нет товаров. Нажмите "Добавить товар" в главном меню.',  # noqa: RUF001
             "list.item": "{title} — {price}",
             "product.title": "Карточка товара",
             "product.name": "Название: <b>{title}</b>",
@@ -85,7 +88,7 @@ i18n = I18N(
             "notif.deal_reached": """🎉 Товар «{title}» достиг целевой цены!
 Сейчас: <b>{current}</b> ≤ цель <b>{target}</b>.""",
             "notif.deal_over": """ℹ️ Цена на товар «{title}» снова выше цели.
-Сейчас: <b>{current}</b> > цель <b>{target}</b>.""",
+Сейчас: <b>{current}</b> > цель <b>{target}</b>.""",  # noqa: RUF001
             "notif.delete.ok": "Товар удалён и больше не отслеживается.",
             "btn.delete": "🗑️ Удалить товар",
             "btn.open": "🔗 Открыть товар",
@@ -98,7 +101,7 @@ i18n = I18N(
             # App
             "app.name": "Ozon Price Tracker",
             # Menu
-            "menu.add": "➕ Add product",
+            "menu.add": "➕ Add product",  # noqa: RUF001
             "menu.list": "📋 Products",
             "menu.settings": "⚙️ Settings",
             "menu.back": "🏠 Main menu",
@@ -107,16 +110,19 @@ i18n = I18N(
             "start.body": (
                 "Send a product link and a target price — I'll notify you when the price drops.\n\n"
                 "Available sections:\n"
-                "• ➕ Add product — start the add wizard\n"
+                "• ➕ Add product — start the add wizard\n"  # noqa: RUF001
                 "• 📋 Products — view & manage\n"
                 "• ⚙️ Settings — language & options"
             ),
             # Add Product
             "add.title": "Add product",
             "add.ask_url": "Send an Ozon product link",
-            "add.invalid_url": "This doesn't look like an Ozon link. Please send a valid https://www.ozon... URL.",
-            "add.duplicate": "This product is already tracked. You can change target price from the list.",
-            "add.limit_reached": "You've reached the 10 products limit. Contact admin to increase it.",
+            "add.invalid_url": "This doesn't look like an Ozon link. "
+            "Please send a valid https://www.ozon... URL.",
+            "add.duplicate": "This product is already tracked. "
+            "You can change target price from the list.",
+            "add.limit_reached": "You've reached the 10 products limit. "
+            "Contact admin to increase it.",
             "add.found": """Found: <b>{title}</b>
 Current price: <b>{price}</b>""",
             "add.ask_target": "Enter a target price (number)",
@@ -127,7 +133,7 @@ Link: {url}
 Current price: <b>{current}</b>
 Target price: <b>{target}</b>""",
             "add.cancel": "Adding cancelled. Back to menu.",
-            "add.fetching": "Fetching product info from Ozon… please wait.",
+            "add.fetching": "Fetching product info from Ozon... please wait.",
             "add.fetch_error": "Failed to fetch data from Ozon. Please try again later.",
             "add.fetch_blocked": "Ozon blocked the request (antibot). Please try again later.",
             "add.with_card_label": "With card",
@@ -157,7 +163,7 @@ Target price: <b>{target}</b>""",
             "notif.deal_reached": """🎉 Deal! “{title}” reached the target.
 Now: <b>{current}</b> ≤ target <b>{target}</b>.""",
             "notif.deal_over": """ℹ️ “{title}” is no longer below target.
-Now: <b>{current}</b> > target <b>{target}</b>.""",
+Now: <b>{current}</b> > target <b>{target}</b>.""",  # noqa: RUF001
             "notif.delete.ok": "Product removed and will not be tracked anymore.",
             "btn.delete": "🗑️ Remove product",
             "btn.open": "🔗 Open product",

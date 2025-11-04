@@ -1,18 +1,19 @@
 from __future__ import annotations
 
-from aiogram import Router, F
+from typing import Any
+
+from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import CallbackQuery, Message, InaccessibleMessage
+from aiogram.types import CallbackQuery, InaccessibleMessage, Message
 
-from app.callbacks import MenuCB, ProductCB, ActionCB
+from app.callbacks import ActionCB, MenuCB, ProductCB
 from app.i18n import Lang, i18n
-from app.keyboards.products import products_list_kb, product_card_kb
 from app.keyboards.common import cancel_kb
-from app.repositories.products import ProductsRepo, PAGE_SIZE
+from app.keyboards.products import product_card_kb, products_list_kb
+from app.repositories.products import PAGE_SIZE, ProductsRepo
 from app.repositories.users import PostgresUserRepo
 from app.utils.validators import parse_price
-
 
 router = Router(name="products")
 
@@ -41,9 +42,7 @@ async def open_list(
     if not items:
         await cb.message.edit_text(
             i18n.t(user.language, "list.empty"),
-            reply_markup=products_list_kb(
-                i18n, user.language, items=[], page=1, pages=1
-            ),
+            reply_markup=products_list_kb(i18n, user.language, items=[], page=1, pages=1),
         )
         await cb.answer()
         return
@@ -62,21 +61,19 @@ async def open_list(
     ]
     await cb.message.edit_text(
         i18n.t(user.language, "list.title", page=page, pages=pages),
-        reply_markup=products_list_kb(
-            i18n, user.language, items=pairs, page=page, pages=pages
-        ),
+        reply_markup=products_list_kb(i18n, user.language, items=pairs, page=page, pages=pages),
     )
     await cb.answer()
 
 
 async def _render_product(
-    cb: CallbackQuery | Message,
+    cb: Any,
     *,
     lang: Lang,
     product_id: int,
     page: int,
     products: ProductsRepo,
-):
+) -> None:
     prod = await products.get_by_id(product_id)
     if not prod:
         if isinstance(cb, CallbackQuery):
@@ -96,14 +93,10 @@ async def _render_product(
 {i18n.t(lang, "product.curr", price=_fmt_price(current_price), date_part=date_part)}
 {i18n.t(lang, "product.target", price=_fmt_price(prod.target_price))}"""
 
-    if isinstance(cb, CallbackQuery) and not isinstance(
-        cb.message, InaccessibleMessage | None
-    ):
+    if isinstance(cb, CallbackQuery) and not isinstance(cb.message, InaccessibleMessage | None):
         await cb.message.edit_text(
             text,
-            reply_markup=product_card_kb(
-                i18n, lang, product_id=prod.id, page=page, url=prod.url
-            ),
+            reply_markup=product_card_kb(i18n, lang, product_id=prod.id, page=page, url=prod.url),
         )
     else:
         await cb.answer(text)
@@ -154,9 +147,7 @@ async def back_to_list(
     ]
     await cb.message.edit_text(
         i18n.t(user.language, "list.title", page=page, pages=pages),
-        reply_markup=products_list_kb(
-            i18n, user.language, items=pairs, page=page, pages=pages
-        ),
+        reply_markup=products_list_kb(i18n, user.language, items=pairs, page=page, pages=pages),
     )
     await cb.answer()
 
@@ -180,9 +171,7 @@ async def edit_target_start(
     await cb.answer()
 
 
-@router.callback_query(
-    ActionCB.filter(F.action == "cancel"), EditTarget.waiting_for_price
-)
+@router.callback_query(ActionCB.filter(F.action == "cancel"), EditTarget.waiting_for_price)
 async def edit_target_cancel(
     cb: CallbackQuery,
     user_repo: PostgresUserRepo,
@@ -231,9 +220,7 @@ async def edit_target_save(
     data = await state.get_data()
     product_id_raw = data.get("product_id")
     if product_id_raw is None:
-        await message.answer(
-            "Product ID not found", reply_markup=cancel_kb(i18n, user.language)
-        )
+        await message.answer("Product ID not found", reply_markup=cancel_kb(i18n, user.language))
         return
 
     product_id = int(product_id_raw)
@@ -244,11 +231,11 @@ async def edit_target_save(
 
     await message.answer(i18n.t(user.language, "edit.saved", price=f"{price:.2f}"))
 
-    class _MsgAdapter(Message):
-        def __init__(self, msg):
+    class _MsgAdapter:
+        def __init__(self, msg: Message) -> None:
             self._msg = msg
 
-        async def edit_text(self, *args, **kwargs):
+        async def answer(self, *args: Any, **kwargs: Any) -> None:
             await self._msg.answer(*args, **kwargs)
 
     await _render_product(

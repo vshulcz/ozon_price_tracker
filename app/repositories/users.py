@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Mapping
 
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.i18n import Lang
 from app.db.models import User
+from app.i18n import Lang
 
 
 @dataclass

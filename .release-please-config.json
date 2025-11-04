@@ -1,0 +1,19 @@
+{
+  "release-type": "python",
+  "bump-minor-pre-major": true,
+  "bump-patch-for-minor-pre-major": true,
+  "packages": {
+    ".": {
+      "package-name": "ozon-price-tracker",
+      "changelog-path": "CHANGELOG.md"
+    }
+  },
+  "plugins": [
+    {
+      "type": "node-workspace"
+    }
+  ],
+  "extra-files": [
+    "pyproject.toml"
+  ]
+}

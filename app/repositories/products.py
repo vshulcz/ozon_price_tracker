@@ -1,13 +1,13 @@
 from __future__ import annotations
 
+from collections.abc import AsyncGenerator
 from dataclasses import dataclass
-from typing import AsyncGenerator
 
-from sqlalchemy import select, update, func, delete
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import Product as ProductModel, PriceHistory, User as UserModel
-
+from app.db.models import PriceHistory
+from app.db.models import Product as ProductModel
 
 MAX_PRODUCTS_PER_USER = 20
 PAGE_SIZE = 5
@@ -39,7 +39,9 @@ class ProductsRepo:
             title=p.title,
             target_price=float(p.target_price),
             current_price=float(p.current_price) if p.current_price is not None else None,
-            last_notified_price=float(p.last_notified_price) if p.last_notified_price is not None else None,
+            last_notified_price=float(p.last_notified_price)
+            if p.last_notified_price is not None
+            else None,
             last_state=p.last_state,
             is_active=bool(p.is_active),
         )
@@ -50,7 +52,9 @@ class ProductsRepo:
         )
         return int(res.scalar_one())
 
-    async def list_page(self, user_id: int, page: int, page_size: int = PAGE_SIZE) -> tuple[list[Product], int]:
+    async def list_page(
+        self, user_id: int, page: int, page_size: int = PAGE_SIZE
+    ) -> tuple[list[Product], int]:
         total = await self.count_by_user(user_id)
         pages = max((total + page_size - 1) // page_size, 1)
         page = max(1, min(page, pages))
@@ -78,18 +82,31 @@ class ProductsRepo:
         p = res.scalar_one_or_none()
         return self._to_dto(p) if p else None
 
-    async def create(self, *, user_id: int, url: str, title: str, target_price: float, current_price: float | None) -> int:
+    async def create(
+        self,
+        *,
+        user_id: int,
+        url: str,
+        title: str,
+        target_price: float,
+        current_price: float | None,
+    ) -> int:
         p = ProductModel(
-            user_id=user_id, url=url, title=title, target_price=target_price, current_price=current_price
+            user_id=user_id,
+            url=url,
+            title=title,
+            target_price=target_price,
+            current_price=current_price,
         )
         self.session.add(p)
         try:
             await self.session.commit()
         except Exception:
             await self.session.rollback()
-            # возможно конфликт по (user_id, url) — вернём существующий id
             res = await self.session.execute(
-                select(ProductModel.id).where(ProductModel.user_id == user_id, ProductModel.url == url)
+                select(ProductModel.id).where(
+                    ProductModel.user_id == user_id, ProductModel.url == url
+                )
             )
             ex_id = res.scalar_one_or_none()
             return int(ex_id) if ex_id is not None else 0
@@ -105,7 +122,7 @@ class ProductsRepo:
         res = await self.session.execute(
             select(PriceHistory.price, PriceHistory.observed_at)
             .where(PriceHistory.product_id == product_id)
-            .order_by(PriceHistory.observed_at.desc())
+            .order_by(PriceHistory.observed_at.desc(), PriceHistory.id.desc())
             .limit(1)
         )
         row = res.first()
@@ -127,7 +144,9 @@ class ProductsRepo:
         async for p in res:
             yield self._to_dto(p)
 
-    async def update_current_and_history(self, product_id: int, price: float, source: str = "scheduler") -> None:
+    async def update_current_and_history(
+        self, product_id: int, price: float, source: str = "scheduler"
+    ) -> None:
         await self.session.execute(
             update(ProductModel)
             .where(ProductModel.id == product_id)
@@ -136,16 +155,20 @@ class ProductsRepo:
         self.session.add(PriceHistory(product_id=product_id, price=price, source=source))
         await self.session.commit()
 
-    async def set_last_state(self, product_id: int, state: str | None, last_notified_price: float | None) -> None:
+    async def set_last_state(
+        self, product_id: int, state: str | None, last_notified_price: float | None
+    ) -> None:
         await self.session.execute(
-            update(ProductModel).where(ProductModel.id == product_id).values(
-                last_state=state, last_notified_price=last_notified_price, updated_at=func.now()
+            update(ProductModel)
+            .where(ProductModel.id == product_id)
+            .values(
+                last_state=state,
+                last_notified_price=last_notified_price,
+                updated_at=func.now(),
             )
         )
         await self.session.commit()
 
     async def delete(self, product_id: int) -> None:
-        await self.session.execute(
-            delete(ProductModel).where(ProductModel.id == product_id)
-        )
+        await self.session.execute(delete(ProductModel).where(ProductModel.id == product_id))
         await self.session.commit()
