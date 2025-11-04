@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import contextlib
 import logging
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from aiogram.types import CallbackQuery, Message, User
+from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.i18n import Lang, i18n
@@ -29,19 +30,21 @@ class ErrorsMiddleware:
             logger.exception("Unhandled error")
 
         lang: Lang = "ru"
-        try:
-            tg_id = None
-            if isinstance(event, (Message, CallbackQuery)) and isinstance(event.from_user, User):
-                tg_id = event.from_user.id
 
-            if tg_id and self.session_maker:
+        tg_id = None
+        with contextlib.suppress(Exception):
+            fu = getattr(event, "from_user", None)
+            tg_id = getattr(fu, "id", None)
+
+        if tg_id and self.session_maker:
+            try:
                 async with self.session_maker() as session:
-                    repo = PostgresUserRepo(session)
-                    user = await repo.get_by_tg_id(tg_id)
+                    user_repo = PostgresUserRepo(session)
+                    user = await user_repo.get_by_tg_id(tg_id)
                     if user and user.language in ("ru", "en"):
                         lang = user.language
-        except Exception:
-            logger.exception("Failed to determine user language")
+            except Exception:
+                logger.exception("Failed to determine user language")
 
         text = i18n.t(lang, "error.unexpected")
         try:

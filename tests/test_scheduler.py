@@ -100,3 +100,116 @@ async def test_scheduler_deal_transitions(
         "снова выше цели" in fake_bot.messages[1]["text"]
         or "no longer below target" in fake_bot.messages[1]["text"]
     )
+
+
+@pytest.mark.asyncio
+async def test_scheduler_skips_when_no_price(
+    fake_bot, users_repo: PostgresUserRepo, products_repo: ProductsRepo, session, monkeypatch
+):
+    db_session = session
+    user = await users_repo.ensure_user(1001)
+    pid = await products_repo.create(
+        user_id=user.id,
+        url="https://www.ozon.ru/item/np",
+        title="No Price",
+        target_price=50.00,
+        current_price=60.00,
+    )
+
+    async def _only_one():
+        p = await products_repo.get_by_id(pid)
+        yield p
+
+    monkeypatch.setattr(products_repo, "list_all_active", _only_one)
+
+    async def fake_fetch(url: str):
+        from app.services.ozon_client import ProductInfo
+
+        return ProductInfo(title="No Price", price_no_card=None, price_with_card=None)
+
+    monkeypatch.setattr("app.scheduler.fetch_product_info", fake_fetch)
+
+    class _UsersRepoFactory:
+        def __init__(self, inst):
+            self.inst = inst
+
+        def __call__(self, session):
+            return self.inst
+
+    class _ProductsRepoFactory:
+        def __init__(self, inst):
+            self.inst = inst
+
+        def __call__(self, session):
+            return self.inst
+
+    monkeypatch.setattr("app.scheduler.PostgresUserRepo", _UsersRepoFactory(users_repo))
+    monkeypatch.setattr("app.scheduler.ProductsRepo", _ProductsRepoFactory(products_repo))
+
+    session_maker = make_session_maker(db_session)
+
+    await refresh_prices_and_notify(fake_bot, cast(Any, session_maker))
+
+    assert len(fake_bot.messages) == 0
+
+    latest = await products_repo.get_latest_price(pid)
+    assert latest is None
+
+
+@pytest.mark.asyncio
+async def test_scheduler_skips_when_user_missing(
+    fake_bot, users_repo: PostgresUserRepo, products_repo: ProductsRepo, session, monkeypatch
+):
+    db_session = session
+    user = await users_repo.ensure_user(2002)
+    pid = await products_repo.create(
+        user_id=user.id,
+        url="https://www.ozon.ru/item/x",
+        title="Orphan",
+        target_price=10.00,
+        current_price=20.00,
+    )
+
+    async def _only_one():
+        p = await products_repo.get_by_id(pid)
+        yield p
+
+    monkeypatch.setattr(products_repo, "list_all_active", _only_one)
+
+    async def fake_fetch(url: str):
+        from app.services.ozon_client import ProductInfo
+
+        return ProductInfo(title="Orphan", price_no_card=Decimal("9.00"), price_with_card=None)
+
+    monkeypatch.setattr("app.scheduler.fetch_product_info", fake_fetch)
+
+    class _UsersRepoFactory:
+        def __init__(self, inst):
+            self.inst = inst
+
+        def __call__(self, session):
+            return self.inst
+
+    class _ProductsRepoFactory:
+        def __init__(self, inst):
+            self.inst = inst
+
+        def __call__(self, session):
+            return self.inst
+
+    monkeypatch.setattr("app.scheduler.PostgresUserRepo", _UsersRepoFactory(users_repo))
+    monkeypatch.setattr("app.scheduler.ProductsRepo", _ProductsRepoFactory(products_repo))
+
+    async def _none_user(uid):
+        return None
+
+    monkeypatch.setattr(users_repo, "get_by_id", _none_user)
+
+    session_maker = make_session_maker(db_session)
+
+    await refresh_prices_and_notify(fake_bot, cast(Any, session_maker))
+
+    assert len(fake_bot.messages) == 0
+
+    latest = await products_repo.get_latest_price(pid)
+    assert latest and latest[0] == 9.00
