@@ -5,13 +5,16 @@
 [![codecov](https://codecov.io/gh/vshulcz/ozon_price_tracker/branch/main/graph/badge.svg)](https://codecov.io/gh/vshulcz/ozon_price_tracker)
 ![license](https://img.shields.io/badge/license-MIT-blue)
 ![python](https://img.shields.io/badge/python-3.11+-blue)
+[![Telegram Demo](https://img.shields.io/badge/telegram-@mpricemonitoring__bot-2CA5E0?logo=telegram\&logoColor=white)](https://t.me/mpricemonitoring_bot)
 
-A Telegram bot that tracks prices of Ozon products. Users add a product link, set a target price, and the bot checks prices three times a day and notifies when the target is reached.
+A Telegram bot that tracks prices of Ozon products. Paste a product link, set a target price, and the bot checks prices three times a day and notifies you when the target is reached.
+
+> [🇷🇺 Русская версия](README-ru.md)
 
 ## Quick start (Docker)
 
-```sh
-cp .env.example .env # set BOT_TOKEN
+```bash
+cp .env.example .env   # set BOT_TOKEN and DATABASE_URL
 make up && make logs
 ```
 
@@ -32,5 +35,11 @@ make up && make logs
 
 ## Notes
 
-* Scraping may be against Ozon’s terms; use responsibly and at your own risk.
-* SQLite is sufficient for small deployments; you can swap to Postgres by replacing aiosqlite repos.
+* Scraping may violate Ozon T&Cs — use responsibly and at your own risk.
+* The project is for educational/demo purposes.
+* Try the demo: **[@mpricemonitoring_bot](https://t.me/mpricemonitoring_bot)**
+
+## Contributing
+
+* PRs are welcome - please run linters/tests locally and add coverage where possible.
+* Star the repo ⭐ and share
