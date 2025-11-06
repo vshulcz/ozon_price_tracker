@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/vshulcz/ozon_price_tracker/compare/v0.1.1...v0.1.2) (2025-11-06)
+
+
+### Documentation
+
+* readme updated ([85a4afa](https://github.com/vshulcz/ozon_price_tracker/commit/85a4afaf063e16d6ef16798d4cf8aeee3b20d4ac))
+
 ## [0.1.1](https://github.com/vshulcz/ozon_price_tracker/compare/v0.1.0...v0.1.1) (2025-11-04)
 
 
