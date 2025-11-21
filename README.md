@@ -7,39 +7,39 @@
 ![python](https://img.shields.io/badge/python-3.11+-blue)
 [![Telegram Demo](https://img.shields.io/badge/telegram-@mpricemonitoring__bot-2CA5E0?logo=telegram\&logoColor=white)](https://t.me/mpricemonitoring_bot)
 
-A Telegram bot that tracks prices of Ozon products. Paste a product link, set a target price, and the bot checks prices three times a day and notifies you when the target is reached.
+Телеграм‑бот для отслеживания цен на товары Ozon. Добавляйте ссылку на товар, задавайте целевую цену — бот проверяет цены 3 раза в день и присылает уведомление, когда цена стала выгодной.
 
-> [🇷🇺 Русская версия](README-ru.md)
+> [🇬🇧 English version](README-en.md)
 
-## Quick start (Docker)
+## Быстрый старт (Docker)
 
 ```bash
-cp .env.example .env   # set BOT_TOKEN and DATABASE_URL
+cp .env.example .env   # укажите BOT_TOKEN и DATABASE_URL
 make up && make logs
 ```
 
-## Usage Flow
+## Использование
 
-1. Tap Add product and send a valid Ozon product URL.
-2. The bot fetches product title and current price.
-3. Enter a target price.
-4. The product is stored and appears in Products. You can open its card and Edit target price, Open Ozon, or go Back.
-5. The scheduler runs at 09:00, 15:00 and 21:00 (server time) and updates prices, storing history.
-6. When current ≤ target, you receive a deal reached notification with a Remove product button.
-7. If later current > target, you receive one deal over notification. Repeated notifications for the same state are suppressed.
+1. Нажмите "Добавить товар" и отправьте действительный URL-адрес продукта Ozon.
+2. Бот определит название продукта и текущую цену.
+3. Введите целевую цену.
+4. Продукт будет сохранен и появится в разделе "Товары". Вы можете открыть его карточку и отредактировать целевую цену, открыть Ozon или вернуться назад.
+5. Планировщик запускается в 09:00, 15:00 и 21:00 (по времени сервера) и обновляет цены, сохраняя историю.
+6. Если текущее значение меньше целевого, вы получаете уведомление о достижении цели.
+7. Если позже текущее значение станет снова больше целевого, вы получаете уведомление.
 
-## Internationalization
+## Локализация
 
-* RU 🇷🇺 and EN 🇬🇧 message dictionaries live in app/i18n.py.
-* In bot: settings → choose language.
+* RU 🇷🇺 и EN 🇬🇧 словари сообщений находятся в app/i18n.py.
+* В боте: настройки - выбрать язык.
 
-## Notes
+## Примечания
 
-* Scraping may violate Ozon T&Cs — use responsibly and at your own risk.
-* The project is for educational/demo purposes.
-* Try the demo: **[@mpricemonitoring_bot](https://t.me/mpricemonitoring_bot)**
+* Используйте аккуратно и на свой риск: скрапинг может противоречить правилам Ozon.
+* Проект для демонстрационных/учебных целей.
+* Попробуйте демо: **[@mpricemonitoring_bot](https://t.me/mpricemonitoring_bot)**
 
-## Contributing
+## Как помочь
 
-* PRs are welcome - please run linters/tests locally and add coverage where possible.
-* Star the repo ⭐ and share
+* PR приветствуются - запускайте линтеры/тесты и добавляйте покрытие.
+* Добавляйте проект в избранное ⭐
