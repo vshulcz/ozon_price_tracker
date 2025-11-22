@@ -18,6 +18,7 @@ images:
 patches:
   - path: patches/bot-resources.yaml
   - path: patches/postgres-resources.yaml
+  - path: patches/postgres-volume.yaml
 
 replicas:
   - name: ozon-bot
