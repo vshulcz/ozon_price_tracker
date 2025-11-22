@@ -148,6 +148,8 @@ async def test_main_wires_everything_and_cleans_up(monkeypatch):
         bot_token = "TEST:TOKEN"  # noqa: S105
         database_url = "sqlite+aiosqlite:///file.db"
         log_level = "INFO"
+        price_check_hours = "1,2,3"
+        auto_migrate = True
 
     monkeypatch.setattr(botmod.Settings, "from_env", staticmethod(lambda: _S))
 
@@ -155,7 +157,7 @@ async def test_main_wires_everything_and_cleans_up(monkeypatch):
     session = _FakeSession()
     session_maker = make_session_maker(session)
 
-    async def _init_engine_and_schema(db_url):
+    def _init_engine_and_schema(db_url):
         assert db_url == _S.database_url
         return engine, session_maker
 
@@ -166,9 +168,10 @@ async def test_main_wires_everything_and_cleans_up(monkeypatch):
 
     scheduler = FakeScheduler()
 
-    def _setup_scheduler(bot, session_maker_arg):
+    def _setup_scheduler(bot, price_check_hours, session_maker_arg):
         assert bot.token == _S.bot_token
         assert session_maker_arg is session_maker
+        assert price_check_hours == _S.price_check_hours
         return scheduler
 
     monkeypatch.setattr(botmod, "setup_scheduler", _setup_scheduler)

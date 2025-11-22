@@ -28,6 +28,8 @@ services:
       BOT_TOKEN: ${BOT_TOKEN}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      AUTO_MIGRATE: ${AUTO_MIGRATE:-true}
+      PRICE_CHECK_HOURS: ${PRICE_CHECK_HOURS:-9,15,21}
 
 volumes:
   pgdata:

@@ -12,6 +12,7 @@ from aiogram.types import BotCommand
 
 from app.config import Settings
 from app.db.db import init_engine_and_schema
+from app.db.migrations import run_migrations
 from app.handlers import add_product as add_handlers
 from app.handlers import products as products_handlers
 from app.handlers import settings as settings_handlers
@@ -36,9 +37,20 @@ async def main() -> None:
     logging.basicConfig(
         level=getattr(logging, settings.log_level.upper(), logging.INFO),
         format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+        force=True,
     )
 
-    engine, session_maker = await init_engine_and_schema(settings.database_url)
+    logger = logging.getLogger(__name__)
+
+    if settings.auto_migrate:
+        logger.info("AUTO_MIGRATE is enabled, running database migrations...")
+        try:
+            run_migrations(settings.database_url)
+        except Exception as e:
+            logger.error("Failed to run migrations: %s", e)
+            raise
+
+    engine, session_maker = init_engine_and_schema(settings.database_url)
 
     bot = Bot(
         token=settings.bot_token,
@@ -62,9 +74,9 @@ async def main() -> None:
     await bot.delete_webhook(drop_pending_updates=True)
     await setup_bot_commands(bot)
 
-    scheduler = setup_scheduler(bot, session_maker)
+    scheduler = setup_scheduler(bot, settings.price_check_hours, session_maker)
 
-    logging.info("Bot started. Polling with scheduler...")
+    logger.info("Bot started. Polling with scheduler...")
     try:
         await dp.start_polling(bot)
     finally:
