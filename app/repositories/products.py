@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass
 
@@ -8,6 +9,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import PriceHistory
 from app.db.models import Product as ProductModel
+
+logger = logging.getLogger(__name__)
 
 MAX_PRODUCTS_PER_USER = 20
 PAGE_SIZE = 5
@@ -101,7 +104,13 @@ class ProductsRepo:
         self.session.add(p)
         try:
             await self.session.commit()
-        except Exception:
+        except Exception as e:
+            logger.warning(
+                "Failed to create product, checking for duplicate | User: %d | URL: %s | Error: %s",
+                user_id,
+                url[:100],
+                e,
+            )
             await self.session.rollback()
             res = await self.session.execute(
                 select(ProductModel.id).where(
@@ -109,8 +118,11 @@ class ProductsRepo:
                 )
             )
             ex_id = res.scalar_one_or_none()
+            if ex_id:
+                logger.info("Found existing product ID: %d", ex_id)
             return int(ex_id) if ex_id is not None else 0
         await self.session.refresh(p)
+        logger.debug("Product created | ID: %d | User: %d | Title: %s", p.id, user_id, title[:50])
         return int(p.id)
 
     async def add_price_history(self, product_id: int, price: float, source: str) -> None:
@@ -147,13 +159,24 @@ class ProductsRepo:
     async def update_current_and_history(
         self, product_id: int, price: float, source: str = "scheduler"
     ) -> None:
-        await self.session.execute(
-            update(ProductModel)
-            .where(ProductModel.id == product_id)
-            .values(current_price=price, updated_at=func.now())
-        )
-        self.session.add(PriceHistory(product_id=product_id, price=price, source=source))
-        await self.session.commit()
+        try:
+            await self.session.execute(
+                update(ProductModel)
+                .where(ProductModel.id == product_id)
+                .values(current_price=price, updated_at=func.now())
+            )
+            self.session.add(PriceHistory(product_id=product_id, price=price, source=source))
+            await self.session.commit()
+        except Exception as e:
+            logger.error(
+                "Failed to update price for product %d: %s | Price: %.2f | Source: %s",
+                product_id,
+                e,
+                price,
+                source,
+            )
+            await self.session.rollback()
+            raise
 
     async def set_last_state(
         self, product_id: int, state: str | None, last_notified_price: float | None

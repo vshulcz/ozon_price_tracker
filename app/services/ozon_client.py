@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import json
+import logging
 import platform
 import re
 from dataclasses import dataclass
@@ -10,6 +11,8 @@ from decimal import Decimal
 from urllib.parse import quote, urlparse, urlsplit, urlunsplit
 
 from playwright.async_api import Browser, BrowserContext, Page, async_playwright
+
+logger = logging.getLogger(__name__)
 
 FIRST_PARTY = ("ozon.ru", "ozone.ru", "cdn1.ozone.ru", "cdn2.ozone.ru", "ir.ozone.ru")
 _WIDGET_PRICE_KEYS = ("webPrice", "webProductPrices", "webSale")
@@ -76,6 +79,7 @@ class _Browser:
             if cls._browser:
                 return
 
+            logger.info("Starting browser for Ozon scraping...")
             prof = _os_profile()
             cls._pl = await async_playwright().start()
 
@@ -84,11 +88,14 @@ class _Browser:
                 try:
                     launch_kwargs["channel"] = prof["channel"]
                     cls._browser = await cls._pl.chromium.launch(**launch_kwargs)
-                except Exception:
+                    logger.info("Browser started with channel: %s", prof["channel"])
+                except Exception as e:
+                    logger.warning("Failed to start browser with channel, using default: %s", e)
                     launch_kwargs.pop("channel", None)
                     cls._browser = await cls._pl.chromium.launch(**launch_kwargs)
             else:
                 cls._browser = await cls._pl.chromium.launch(**launch_kwargs)
+                logger.info("Browser started without channel")
 
             cls._ctx = await cls._browser.new_context(
                 locale="ru-RU",
@@ -121,6 +128,7 @@ class _Browser:
 
     @classmethod
     async def shutdown(cls) -> None:
+        logger.info("Shutting down browser...")
         async with cls._lock:
             with contextlib.suppress(Exception):
                 if cls._ctx:
@@ -134,6 +142,7 @@ class _Browser:
                 if cls._pl:
                     await cls._pl.stop()
                 cls._pl = None
+        logger.info("Browser shutdown completed")
 
 
 async def _route_blocker(route, request):
@@ -146,6 +155,7 @@ async def _route_blocker(route, request):
 
 
 async def _pass_ozon_challenge(ctx: BrowserContext, page: Page, timeout_ms=45000) -> bool:
+    logger.debug("Passing Ozon anti-bot challenge...")
     await page.goto(
         "https://www.ozon.ru/?abt_att=1&__rr=1",
         wait_until="domcontentloaded",
@@ -158,32 +168,53 @@ async def _pass_ozon_challenge(ctx: BrowserContext, page: Page, timeout_ms=45000
             timeout=timeout_ms,
         ) as resp_info:
             await resp_info.value
-    except Exception:
+    except Exception as e:
+        logger.warning("Failed to pass Ozon challenge: %s", e)
         return False
 
     cookies = await ctx.cookies("https://www.ozon.ru/")
     ok = any(c.get("name") == "abt_data" for c in cookies)
+    logger.debug("Ozon challenge result: %s", "passed" if ok else "failed")
     return ok
 
 
 async def fetch_product_info(url: str, *, retries: int = 2) -> ProductInfo:
     if not re.search(r"^https?://(www\.)?ozon\.[^/]+/", url, re.IGNORECASE):
+        logger.warning("Invalid Ozon URL: %s", url[:100])
         raise ValueError("Not an Ozon product URL")
 
     url = _to_www(url)
+    logger.debug("Fetching product info from: %s", url[:100])
 
-    for _ in range(retries + 1):
+    for attempt in range(retries + 1):
         page = None
         try:
             page = await _Browser.page()
-            return await fetch_product_info_via_api(url)
-        except Exception:
-            await asyncio.sleep(1.2)
+            result = await fetch_product_info_via_api(url)
+            logger.info(
+                "Product fetched | URL: %s | Title: %s | Price card: %s | Price: %s",
+                url[:100],
+                result.title[:50],
+                result.price_with_card,
+                result.price_no_card,
+            )
+            return result
+        except Exception as e:
+            logger.warning(
+                "Fetch attempt %d/%d failed for URL %s: %s",
+                attempt + 1,
+                retries + 1,
+                url[:100],
+                e,
+            )
+            if attempt < retries:
+                await asyncio.sleep(1.2)
         finally:
             if page:
                 with contextlib.suppress(Exception):
                     await page.close()
 
+    logger.error("All fetch attempts failed for URL: %s", url[:100])
     raise OzonBlockedError()
 
 
@@ -348,9 +379,21 @@ async def fetch_product_info_via_api(url: str) -> ProductInfo:
 
     data = await _ozon_api_get_json_v2(ctx, _to_www(url))
     if not data:
+        logger.error("Empty API response from Ozon for URL: %s", url[:100])
         raise OzonBlockedError("ozon_api_empty")
 
-    title = _pick_title(data) or "Ozon item"
+    title = _pick_title(data)
+    if not title:
+        logger.warning("Could not extract title from Ozon API for URL: %s", url[:100])
+        title = "Ozon item"
+
     with_card, no_card = _pick_prices(data)
+
+    if not with_card and not no_card:
+        logger.warning(
+            "Could not extract any prices from Ozon API for URL: %s | Title: %s",
+            url[:100],
+            title[:50],
+        )
 
     return ProductInfo(title=title, price_with_card=with_card, price_no_card=no_card)

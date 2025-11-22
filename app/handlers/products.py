@@ -13,6 +13,7 @@ from app.keyboards.common import cancel_kb
 from app.keyboards.products import product_card_kb, products_list_kb
 from app.repositories.products import PAGE_SIZE, ProductsRepo
 from app.repositories.users import PostgresUserRepo
+from app.utils.logging import log_callback_handler, log_message_handler, log_product_action
 from app.utils.validators import parse_price
 
 router = Router(name="products")
@@ -27,6 +28,7 @@ def _fmt_price(v: float | None) -> str:
 
 
 @router.callback_query(MenuCB.filter(F.action == "list"))
+@log_callback_handler("products_list")
 async def open_list(
     cb: CallbackQuery,
     callback_data: MenuCB,
@@ -39,6 +41,11 @@ async def open_list(
 
     page = callback_data.page or 1
     items, pages = await products.list_page(user.id, page, PAGE_SIZE)
+
+    log_product_action(
+        user.id, "view_products_list", page=page, total_pages=pages, items_count=len(items)
+    )
+
     if not items:
         await cb.message.edit_text(
             i18n.t(user.language, "list.empty"),
@@ -103,6 +110,7 @@ async def _render_product(
 
 
 @router.callback_query(ProductCB.filter(F.action == "open"))
+@log_callback_handler("product_open")
 async def open_product(
     cb: CallbackQuery,
     callback_data: ProductCB,
@@ -110,6 +118,7 @@ async def open_product(
     products: ProductsRepo,
 ) -> None:
     user = await user_repo.ensure_user(cb.from_user.id)
+    log_product_action(user.id, "view_product_details", product_id=callback_data.id)
     await _render_product(
         cb,
         lang=user.language,
@@ -153,6 +162,7 @@ async def back_to_list(
 
 
 @router.callback_query(ProductCB.filter(F.action == "edit"))
+@log_callback_handler("product_edit_start")
 async def edit_target_start(
     cb: CallbackQuery,
     callback_data: ProductCB,
@@ -162,6 +172,8 @@ async def edit_target_start(
     user = await user_repo.ensure_user(cb.from_user.id)
     if isinstance(cb.message, InaccessibleMessage | None):
         return
+
+    log_product_action(user.id, "start_edit_target_price", product_id=callback_data.id)
 
     await state.set_state(EditTarget.waiting_for_price)
     await state.update_data(product_id=callback_data.id, page=callback_data.page or 1)
@@ -198,6 +210,7 @@ async def edit_target_cancel(
 
 
 @router.message(EditTarget.waiting_for_price)
+@log_message_handler("product_edit_save")
 async def edit_target_save(
     message: Message,
     user_repo: PostgresUserRepo,
@@ -211,6 +224,7 @@ async def edit_target_save(
     user = await user_repo.ensure_user(from_user.id)
     price = parse_price(message.text or "")
     if price is None:
+        log_product_action(user.id, "invalid_edit_price", text=(message.text or "")[:50])
         await message.answer(
             i18n.t(user.language, "add.invalid_price"),
             reply_markup=cancel_kb(i18n, user.language),
@@ -227,6 +241,11 @@ async def edit_target_save(
     page = int(data.get("page", 1))
 
     await products.update_target_price(product_id, float(price))
+
+    log_product_action(
+        user.id, "updated_target_price", product_id=product_id, new_target=float(price)
+    )
+
     await state.clear()
 
     await message.answer(i18n.t(user.language, "edit.saved", price=f"{price:.2f}"))
@@ -248,6 +267,7 @@ async def edit_target_save(
 
 
 @router.callback_query(ProductCB.filter(F.action == "delete"))
+@log_callback_handler("product_delete")
 async def delete_product(
     cb: CallbackQuery,
     callback_data: ProductCB,
@@ -263,6 +283,8 @@ async def delete_product(
     if not prod or prod.user_id != user.id:
         await cb.answer("Not found", show_alert=True)
         return
+
+    log_product_action(user.id, "deleted_product", product_id=prod.id, title=prod.title[:50])
 
     await products.delete(prod.id)
     await cb.message.edit_text(i18n.t(user.language, "notif.delete.ok"))

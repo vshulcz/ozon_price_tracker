@@ -8,6 +8,7 @@ from app.callbacks import MenuCB
 from app.i18n import Lang, i18n
 from app.keyboards.main import main_menu_kb
 from app.repositories.users import PostgresUserRepo
+from app.utils.logging import log_callback_handler, log_message_handler
 
 router = Router(name="start")
 
@@ -17,6 +18,7 @@ def _menu_text(lang: Lang | None) -> str:
 
 
 @router.message(CommandStart())
+@log_message_handler("start")
 async def cmd_start(message: Message, user_repo: PostgresUserRepo) -> None:
     from_user = message.from_user
     if from_user is None:
@@ -30,6 +32,7 @@ async def cmd_start(message: Message, user_repo: PostgresUserRepo) -> None:
 
 
 @router.message(Command("menu"))
+@log_message_handler("menu")
 async def cmd_menu(message: Message, user_repo: PostgresUserRepo) -> None:
     from_user = message.from_user
     if from_user is None:
@@ -43,6 +46,7 @@ async def cmd_menu(message: Message, user_repo: PostgresUserRepo) -> None:
 
 
 @router.callback_query(MenuCB.filter(F.action == "home"))
+@log_callback_handler("menu_home")
 async def on_menu_click(
     cb: CallbackQuery, callback_data: MenuCB, user_repo: PostgresUserRepo
 ) -> None:

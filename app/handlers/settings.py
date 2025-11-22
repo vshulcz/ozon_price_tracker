@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import cast
 
 from aiogram import F, Router
@@ -9,11 +10,15 @@ from app.callbacks import MenuCB, SettingsCB
 from app.i18n import Lang, i18n
 from app.keyboards.main import main_menu_kb, settings_kb
 from app.repositories.users import PostgresUserRepo
+from app.utils.logging import log_callback_handler
+
+logger = logging.getLogger(__name__)
 
 router = Router(name="settings")
 
 
 @router.callback_query(MenuCB.filter(F.action == "settings"))
+@log_callback_handler("settings_open")
 async def open_settings(cb: CallbackQuery, user_repo: PostgresUserRepo) -> None:
     user = await user_repo.ensure_user(cb.from_user.id)
     text = f"<b>{i18n.t(user.language, 'settings.title')}</b>\n\n"
@@ -27,6 +32,7 @@ async def open_settings(cb: CallbackQuery, user_repo: PostgresUserRepo) -> None:
 
 
 @router.callback_query(SettingsCB.filter(F.action == "lang"))
+@log_callback_handler("settings_change_lang")
 async def change_lang(
     cb: CallbackQuery, callback_data: SettingsCB, user_repo: PostgresUserRepo
 ) -> None:
@@ -34,6 +40,12 @@ async def change_lang(
     raw = callback_data.value or "ru"
     new_lang: Lang = cast(Lang, raw if raw in ("ru", "en") else "ru")
     await user_repo.set_language(cb.from_user.id, new_lang)
+
+    logger.info(
+        "User %d changed language to: %s",
+        cb.from_user.id,
+        new_lang,
+    )
 
     lang_name = "Русский" if new_lang == "ru" else "English"
 
