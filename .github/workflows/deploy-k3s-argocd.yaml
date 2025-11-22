@@ -26,14 +26,60 @@ jobs:
   wait-for-ci:
     name: Wait for CI
     runs-on: ubuntu-latest
+    needs: find-pr-image
     steps:
-      - name: Wait for CI workflow
-        uses: lewagon/wait-on-check-action@v1.3.4
+      - name: Wait for CI workflow to complete
+        uses: actions/github-script@v7
+        env:
+          PR_SHA: ${{ needs.find-pr-image.outputs.pr-sha }}
         with:
-          ref: ${{ github.ref }}
-          check-name: 'docker'
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          wait-interval: 10
+          script: |
+            const sha = process.env.PR_SHA;
+            const maxAttempts = 60;
+            const waitTime = 20000;
+
+            console.log(`Waiting for CI workflow to complete for SHA: ${sha}`);
+
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              console.log(`\nAttempt ${attempt}/${maxAttempts}...`);
+
+              // Get all check runs for this commit
+              const { data: checkRuns } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: sha
+              });
+
+              console.log(`Found ${checkRuns.check_runs.length} check runs`);
+
+              // Find the docker check
+              const dockerCheck = checkRuns.check_runs.find(
+                check => check.name === 'docker' || check.name === 'CI / docker'
+              );
+
+              if (!dockerCheck) {
+                console.log('❌ Docker check not found yet, waiting...');
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                continue;
+              }
+
+              console.log(`Docker check status: ${dockerCheck.status}, conclusion: ${dockerCheck.conclusion}`);
+
+              if (dockerCheck.status === 'completed') {
+                if (dockerCheck.conclusion === 'success') {
+                  console.log('✅ CI workflow completed successfully!');
+                  return;
+                } else {
+                  throw new Error(`❌ CI workflow failed with conclusion: ${dockerCheck.conclusion}`);
+                }
+              }
+
+              console.log('CI still running, waiting...');
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+
+            throw new Error('❌ Timeout waiting for CI workflow to complete');
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
   build-and-push:
     name: Build and Push Image
