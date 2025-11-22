@@ -1,11 +1,11 @@
 # Python-generated files
 __pycache__/
-.pytest_cache/
 *.py[oc]
 build/
 dist/
 wheels/
 *.egg-info
+.pytest_cache
 .ruff_cache
 
 # Virtual environments
@@ -16,14 +16,7 @@ wheels/
 data/
 pgdata/
 
-# Kubernetes secrets
-k8s/**/secret-values.yaml
-k8s/**/*-secrets.yaml
-*.secret.yaml
-
 # Other
 .coverage
+tests/
 *.log
-coverage.xml
-pytest.xml
-file.db

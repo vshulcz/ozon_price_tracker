@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ozon-bot-prod
+  labels:
+    app: ozon-price-tracker
+    environment: production

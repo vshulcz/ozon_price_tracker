@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bot-config
+data:
+  LOG_LEVEL: "INFO"
+  AUTO_MIGRATE: "true"
+  PRICE_CHECK_HOURS: "9,15,21"
+  POSTGRES_DB: "price_tracker_bot"
+  POSTGRES_USER: "admin"

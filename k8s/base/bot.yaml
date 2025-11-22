@@ -1,0 +1,85 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ozon-bot
+  labels:
+    app: ozon-bot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ozon-bot
+  template:
+    metadata:
+      labels:
+        app: ozon-bot
+    spec:
+      initContainers:
+        - name: wait-for-postgres
+          image: busybox:1.36
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for PostgreSQL..."
+              until nc -z postgres 5432; do
+                echo "PostgreSQL is unavailable - sleeping"
+                sleep 2
+              done
+              echo "PostgreSQL is up - continuing"
+          resources:
+            requests:
+              memory: "32Mi"
+              cpu: "50m"
+            limits:
+              memory: "64Mi"
+              cpu: "100m"
+      containers:
+        - name: bot
+          image: ghcr.io/vshulcz/ozon_price_tracker:latest
+          env:
+            - name: LOG_LEVEL
+              valueFrom:
+                configMapKeyRef:
+                  name: bot-config
+                  key: LOG_LEVEL
+            - name: AUTO_MIGRATE
+              valueFrom:
+                configMapKeyRef:
+                  name: bot-config
+                  key: AUTO_MIGRATE
+            - name: PRICE_CHECK_HOURS
+              valueFrom:
+                configMapKeyRef:
+                  name: bot-config
+                  key: PRICE_CHECK_HOURS
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: bot-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: bot-config
+                  key: POSTGRES_USER
+            - name: BOT_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: bot-secrets
+                  key: BOT_TOKEN
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: bot-secrets
+                  key: POSTGRES_PASSWORD
+            - name: DATABASE_URL
+              value: "postgresql+psycopg://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+      restartPolicy: Always

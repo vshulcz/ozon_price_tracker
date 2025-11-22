@@ -121,7 +121,7 @@ i18n = I18N(
             "Please send a valid https://www.ozon... URL.",
             "add.duplicate": "This product is already tracked. "
             "You can change target price from the list.",
-            "add.limit_reached": "You've reached the 10 products limit. "
+            "add.limit_reached": "You've reached the 20 products limit. "
             "Contact admin to increase it.",
             "add.found": """Found: <b>{title}</b>
 Current price: <b>{price}</b>""",
