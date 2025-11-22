@@ -6,7 +6,6 @@ namespace: ozon-bot-prod
 resources:
   - namespace.yaml
   - configmap.yaml
-  # - secret.yaml  # Secret создается вручную через kubectl, не управляется ArgoCD
   - postgres.yaml
   - bot.yaml
 
