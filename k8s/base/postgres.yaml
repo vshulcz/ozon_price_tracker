@@ -70,10 +70,10 @@ spec:
                   name: bot-secrets
                   key: POSTGRES_PASSWORD
             - name: PGDATA
-              value: /var/lib/postgresql/data/pgdata
+              value: /pgdata
           volumeMounts:
             - name: postgres-storage
-              mountPath: /var/lib/postgresql/data
+              mountPath: /pgdata
           resources:
             requests:
               memory: "256Mi"
