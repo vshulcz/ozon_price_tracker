@@ -169,7 +169,7 @@ def _last_text_from(cb):
 
 def test_fmt_price_formats_and_dash():
     assert _fmt_price(12.3) == "12.30"
-    assert _fmt_price(None) == "—"
+    assert _fmt_price(None) == "-"
 
 
 @pytest.mark.asyncio

@@ -236,7 +236,7 @@ async def got_target_price(
             "add.saved",
             title=title,
             url=url,
-            current=f"{current_price:.2f}" if current_price is not None else "—",
+            current=f"{current_price:.2f}" if current_price is not None else "-",
             target=f"{price:.2f}",
         ),
         reply_markup=main_menu_kb(i18n, user.language),

@@ -97,10 +97,10 @@ def log_price_check(
         "Price check | Product ID: %d | Title: %s | Old: %s | New: %s %s | Target: %s",
         product_id,
         title[:50],
-        f"{old_price:.2f}" if old_price else "—",
-        f"{new_price:.2f}" if new_price else "—",
+        f"{old_price:.2f}" if old_price else "-",
+        f"{new_price:.2f}" if new_price else "-",
         price_change,
-        f"{target_price:.2f}" if target_price else "—",
+        f"{target_price:.2f}" if target_price else "-",
     )
 
 

@@ -24,7 +24,7 @@ class EditTarget(StatesGroup):
 
 
 def _fmt_price(v: float | None) -> str:
-    return f"{v:.2f}" if v is not None else "—"
+    return f"{v:.2f}" if v is not None else "-"
 
 
 @router.callback_query(MenuCB.filter(F.action == "list"))

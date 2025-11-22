@@ -9,7 +9,7 @@ from app.handlers.start import cmd_menu, cmd_start
 async def test_cmd_start_ru(dummy_message, users_repo):
     await cmd_start(dummy_message, users_repo)
     assert dummy_message.answers, "ожидали ответ"
-    assert "Привет! Я — бот" in dummy_message.answers[0]["text"]
+    assert "Привет! Я - бот" in dummy_message.answers[0]["text"]
 
 
 @pytest.mark.asyncio

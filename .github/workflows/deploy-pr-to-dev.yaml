@@ -1,10 +1,6 @@
 name: Deploy PR to Dev
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-    branches: [main]
-
   workflow_dispatch:
     inputs:
       pr_number:
@@ -125,6 +121,9 @@ jobs:
     name: Deploy to Dev
     runs-on: ubuntu-latest
     needs: [find-pr-image, wait-for-ci]
+    environment:
+      name: dev-manual-deploy
+      url: https://github.com/${{ github.repository }}/deployments
     permissions:
       contents: write
       pull-requests: write
