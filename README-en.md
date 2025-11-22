@@ -24,6 +24,13 @@ make up && make logs
 * RU 🇷🇺 and EN 🇬🇧 message dictionaries live in app/i18n.py.
 * In bot: settings - choose language.
 
+## Production Deployment
+
+Production deployment guide with K3s and ArgoCD is available in [documentation](docs/README-en.md):
+
+- [🇬🇧 Deployment Guide](docs/DEPLOYMENT.md)
+- [🇷🇺 Руководство по развёртыванию](docs/DEPLOYMENT.ru.md)
+
 ## Notes
 
 * Scraping may violate Ozon T&Cs — use responsibly and at your own risk.
