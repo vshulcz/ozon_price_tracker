@@ -26,8 +26,24 @@ class ErrorsMiddleware:
     ) -> Any | None:
         try:
             return await handler(event, data)
-        except Exception:
-            logger.exception("Unhandled error")
+        except Exception as e:
+            user_id = None
+            username = None
+            event_type = type(event).__name__
+
+            with contextlib.suppress(Exception):
+                fu = getattr(event, "from_user", None)
+                if fu:
+                    user_id = getattr(fu, "id", None)
+                    username = getattr(fu, "username", None)
+
+            logger.exception(
+                "Unhandled error | Event: %s | User ID: %s | Username: %s | Error: %s",
+                event_type,
+                user_id or "unknown",
+                username or "unknown",
+                e,
+            )
 
         lang: Lang = "ru"
 
@@ -43,8 +59,12 @@ class ErrorsMiddleware:
                     user = await user_repo.get_by_tg_id(tg_id)
                     if user and user.language in ("ru", "en"):
                         lang = user.language
-            except Exception:
-                logger.exception("Failed to determine user language")
+            except Exception as e:
+                logger.warning(
+                    "Failed to determine user language for user %s: %s",
+                    tg_id,
+                    e,
+                )
 
         text = i18n.t(lang, "error.unexpected")
         try:
@@ -56,7 +76,11 @@ class ErrorsMiddleware:
 
             elif isinstance(event, Message):
                 await event.answer(text)
-        except Exception:
-            logger.exception("Failed to send error message to user")
+        except Exception as e:
+            logger.error(
+                "Failed to send error message to user %s: %s",
+                tg_id or "unknown",
+                e,
+            )
 
         return None

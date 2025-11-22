@@ -35,15 +35,33 @@ class User(Base):
     )
     tg_user_id: Mapped[int] = mapped_column(BigInteger, unique=True, nullable=False)
     language: Mapped[Lang] = mapped_column(String(2), nullable=False, default="ru")
+
+    username: Mapped[str | None] = mapped_column(String(255))
+    first_name: Mapped[str | None] = mapped_column(String(255))
+    last_name: Mapped[str | None] = mapped_column(String(255))
+    is_bot: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    is_premium: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    last_active_at: Mapped[datetime | None]
+    total_interactions: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    notifications_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    timezone: Mapped[str | None] = mapped_column(String(64))
+
     created_at: Mapped[datetime] = mapped_column(
         default=None, server_default=text("CURRENT_TIMESTAMP")
     )
+    updated_at: Mapped[datetime | None]
 
     products: Mapped[list[Product]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
 
-    __table_args__ = (CheckConstraint("language in ('ru','en')", name="users_language_ck"),)
+    __table_args__ = (
+        CheckConstraint("language in ('ru','en')", name="users_language_ck"),
+        Index("idx_users_username", "username"),
+        Index("idx_users_last_active", "last_active_at"),
+    )
 
 
 class Product(Base):

@@ -1,5 +1,7 @@
 # Ozon Price Tracker Bot
 
+<div align="center">
+
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/vshulcz/ozon_price_tracker?sort=semver)
 [![CI](https://github.com/vshulcz/ozon_price_tracker/actions/workflows/ci.yml/badge.svg)](../../actions)
 [![codecov](https://codecov.io/gh/vshulcz/ozon_price_tracker/branch/main/graph/badge.svg)](https://codecov.io/gh/vshulcz/ozon_price_tracker)
@@ -9,12 +11,22 @@
 
 Телеграм‑бот для отслеживания цен на товары Ozon. Добавляйте ссылку на товар, задавайте целевую цену — бот проверяет цены 3 раза в день и присылает уведомление, когда цена стала выгодной.
 
+[Попробовать бота](https://t.me/mpricemonitoring_bot) • [Документация](docs/README.md)
+
+</div>
+
+---
+
 > [🇬🇧 English version](README-en.md)
 
 ## Быстрый старт (Docker)
 
 ```bash
-cp .env.example .env   # укажите BOT_TOKEN и DATABASE_URL
+git clone https://github.com/vshulcz/ozon_price_tracker.git
+cd ozon_price_tracker
+
+cp .env.example .env # укажите BOT_TOKEN от @BotFather
+
 make up && make logs
 ```
 
