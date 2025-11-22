@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.3.0](https://github.com/vshulcz/ozon_price_tracker/compare/v0.2.0...v0.3.0) (2025-11-22)
+
+
+### Features
+
+* **cd:** cd workflow fixed ([cefaf97](https://github.com/vshulcz/ozon_price_tracker/commit/cefaf97f21d7e2cc4d6a7c3efeaea52cbf6ebb77))
+* logging upgraded ([6338479](https://github.com/vshulcz/ozon_price_tracker/commit/63384799d4314cef21474bbe5cf38de8c15a33a9))
+* logging upgraded ([fd50869](https://github.com/vshulcz/ozon_price_tracker/commit/fd50869e82089e5b9728f8316930b1692abf25d2))
+
+
+### Documentation
+
+* deployment guide ([29789d2](https://github.com/vshulcz/ozon_price_tracker/commit/29789d2592d9397dd1736c19a5577c0cfa59afe3))
+
 ## [0.2.0](https://github.com/vshulcz/ozon_price_tracker/compare/v0.1.1...v0.2.0) (2025-11-22)
 
 
