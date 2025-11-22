@@ -4,15 +4,18 @@ import pytest
 from sqlalchemy import func, select, text
 
 from app.db.db import get_session, init_engine_and_schema
+from app.db.migrations import run_migrations
 from app.db.models import User
 
 
 @pytest.mark.asyncio
-async def test_init_engine_and_schema_creates_tables(tmp_path: Path):
+async def test_init_engine_and_schema_with_migrations_creates_tables(tmp_path: Path):
     db_file = tmp_path / "db_test.sqlite3"
     dsn = f"sqlite+aiosqlite:///{db_file}"
 
-    engine, _ = await init_engine_and_schema(dsn)
+    run_migrations(dsn)
+
+    engine, _ = init_engine_and_schema(dsn)
 
     async with engine.begin() as conn:
         res = await conn.execute(
@@ -32,7 +35,9 @@ async def test_get_session_inserts_and_reads_user(tmp_path: Path):
     db_file = tmp_path / "db_insert.sqlite3"
     dsn = f"sqlite+aiosqlite:///{db_file}"
 
-    engine, session_maker = await init_engine_and_schema(dsn)
+    run_migrations(dsn)
+
+    engine, session_maker = init_engine_and_schema(dsn)
 
     async for s in get_session(session_maker):
         u = User(tg_user_id=123456789)
@@ -54,7 +59,9 @@ async def test_get_session_returns_distinct_sessions(tmp_path: Path):
     db_file = tmp_path / "db_sessions.sqlite3"
     dsn = f"sqlite+aiosqlite:///{db_file}"
 
-    engine, session_maker = await init_engine_and_schema(dsn)
+    run_migrations(dsn)
+
+    engine, session_maker = init_engine_and_schema(dsn)
 
     first = None
     async for s in get_session(session_maker):

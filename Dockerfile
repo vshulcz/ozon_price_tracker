@@ -9,14 +9,15 @@ RUN apt-get update && apt-get install -y \
     fonts-dejavu-core fonts-liberation fonts-noto-core fonts-noto-cjk \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=ghcr.io/astral-sh/uv:0.6.6 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.9.11 /uv /uvx /bin/
 
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --frozen --no-install-project
 
 COPY . .
-
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --frozen
 

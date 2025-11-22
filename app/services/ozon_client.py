@@ -173,14 +173,16 @@ async def fetch_product_info(url: str, *, retries: int = 2) -> ProductInfo:
     url = _to_www(url)
 
     for _ in range(retries + 1):
-        page = await _Browser.page()
+        page = None
         try:
+            page = await _Browser.page()
             return await fetch_product_info_via_api(url)
         except Exception:
             await asyncio.sleep(1.2)
         finally:
-            with contextlib.suppress(Exception):
-                await page.close()
+            if page:
+                with contextlib.suppress(Exception):
+                    await page.close()
 
     raise OzonBlockedError()
 

@@ -67,6 +67,7 @@ async def refresh_prices_and_notify(
     async with session_maker() as session:
         users = PostgresUserRepo(session)
         products = ProductsRepo(session)
+
         async for p in products.list_all_active():
             try:
                 info = await fetch_product_info(p.url)
@@ -110,11 +111,13 @@ async def refresh_prices_and_notify(
                 logger.exception("Failed to refresh product %s: %s", p.id, e)
 
 
-def setup_scheduler(bot: Bot, session_maker: async_sessionmaker[AsyncSession]) -> AsyncIOScheduler:
+def setup_scheduler(
+    bot: Bot, cron_trigger: str, session_maker: async_sessionmaker[AsyncSession]
+) -> AsyncIOScheduler:
     scheduler = AsyncIOScheduler()
     scheduler.add_job(
         refresh_prices_and_notify,
-        CronTrigger(hour="9,15,21", minute=0),
+        CronTrigger(hour=cron_trigger, minute=0),
         kwargs={"bot": bot, "session_maker": session_maker},
     )
     scheduler.start()

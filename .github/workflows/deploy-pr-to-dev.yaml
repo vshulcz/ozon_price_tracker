@@ -1,0 +1,273 @@
+name: Deploy PR to Dev
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [main]
+
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: 'PR number to deploy'
+        required: true
+        type: string
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  find-pr-image:
+    name: Find PR Image
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: ${{ steps.find.outputs.tag }}
+      pr-branch: ${{ steps.find.outputs.branch }}
+      pr-sha: ${{ steps.find.outputs.sha }}
+      pr-number: ${{ steps.find.outputs.pr_number }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Find PR details
+        id: find
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -n "${{ inputs.pr_number }}" ]; then
+            PR_NUMBER="${{ inputs.pr_number }}"
+            echo "📝 Manual trigger: deploying PR #${PR_NUMBER}"
+          else
+            PR_NUMBER="${{ github.event.pull_request.number }}"
+            echo "🤖 Auto trigger: deploying PR #${PR_NUMBER}"
+          fi
+
+          # Получаем информацию о PR
+          PR_DATA=$(gh pr view ${PR_NUMBER} --json headRefName,headRefOid)
+
+          BRANCH=$(echo "$PR_DATA" | jq -r '.headRefName')
+          SHA=$(echo "$PR_DATA" | jq -r '.headRefOid')
+          SHORT_SHA=$(echo "$SHA" | cut -c1-7)
+
+          # Image tag format: sha-{short_sha}
+          IMAGE_TAG="sha-${SHORT_SHA}"
+
+          echo "branch=${BRANCH}" >> $GITHUB_OUTPUT
+          echo "tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+          echo "sha=${SHA}" >> $GITHUB_OUTPUT
+          echo "pr_number=${PR_NUMBER}" >> $GITHUB_OUTPUT
+
+          echo "✅ Found PR #${PR_NUMBER}"
+          echo "Branch: ${BRANCH}"
+          echo "SHA: ${SHA}"
+          echo "Image tag: ${IMAGE_TAG}"
+
+  wait-for-ci:
+    name: Wait for CI
+    runs-on: ubuntu-latest
+    needs: find-pr-image
+    steps:
+      - name: Wait for CI workflow to complete
+        uses: actions/github-script@v7
+        env:
+          PR_SHA: ${{ needs.find-pr-image.outputs.pr-sha }}
+        with:
+          script: |
+            const sha = process.env.PR_SHA;
+            const maxAttempts = 60;
+            const waitTime = 20000;
+
+            console.log(`Waiting for CI workflow to complete for SHA: ${sha}`);
+
+            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+              console.log(`\nAttempt ${attempt}/${maxAttempts}...`);
+
+              // Get all check runs for this commit
+              const { data: checkRuns } = await github.rest.checks.listForRef({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                ref: sha
+              });
+
+              console.log(`Found ${checkRuns.check_runs.length} check runs`);
+
+              // Find the docker check
+              const dockerCheck = checkRuns.check_runs.find(
+                check => check.name === 'docker' || check.name === 'CI / docker'
+              );
+
+              if (!dockerCheck) {
+                console.log('❌ Docker check not found yet, waiting...');
+                await new Promise(resolve => setTimeout(resolve, waitTime));
+                continue;
+              }
+
+              console.log(`Docker check status: ${dockerCheck.status}, conclusion: ${dockerCheck.conclusion}`);
+
+              if (dockerCheck.status === 'completed') {
+                if (dockerCheck.conclusion === 'success') {
+                  console.log('✅ CI workflow completed successfully!');
+                  return;
+                } else {
+                  throw new Error(`❌ CI workflow failed with conclusion: ${dockerCheck.conclusion}`);
+                }
+              }
+
+              console.log('CI still running, waiting...');
+              await new Promise(resolve => setTimeout(resolve, waitTime));
+            }
+
+            throw new Error('❌ Timeout waiting for CI workflow to complete');
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+  deploy-to-dev:
+    name: Deploy to Dev
+    runs-on: ubuntu-latest
+    needs: [find-pr-image, wait-for-ci]
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout main branch
+        uses: actions/checkout@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup Kustomize
+        uses: imranismail/setup-kustomize@v2
+
+      - name: Update dev overlay with PR image
+        working-directory: k8s/overlays/dev
+        env:
+          IMAGE_TAG: ${{ needs.find-pr-image.outputs.image-tag }}
+        run: |
+          echo "Updating dev overlay with PR image: ${IMAGE_TAG}"
+
+          kustomize edit set image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}
+
+          echo "✅ Updated dev kustomization.yaml:"
+          cat kustomization.yaml
+
+      - name: Commit and push to main
+        env:
+          PR_NUMBER: ${{ needs.find-pr-image.outputs.pr-number }}
+          IMAGE_TAG: ${{ needs.find-pr-image.outputs.image-tag }}
+          PR_BRANCH: ${{ needs.find-pr-image.outputs.pr-branch }}
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add k8s/overlays/dev/kustomization.yaml
+
+          if git diff --staged --quiet; then
+            echo "⚠️ No changes to commit"
+            exit 0
+          fi
+
+          git commit -m "test(k8s): deploy PR #${PR_NUMBER} to dev for testing" \
+            -m "" \
+            -m "Image: ${IMAGE_TAG}" \
+            -m "PR: #${PR_NUMBER}" \
+            -m "Branch: ${PR_BRANCH}" \
+            -m "Deployed by: @${{ github.actor }}" \
+            -m "" \
+            -m "⚠️ This is a temporary deployment for testing." \
+            -m "Will be overwritten when PR is merged or main is deployed."
+
+          git push origin main
+
+          echo "✅ Dev overlay updated in main branch"
+
+      - name: Comment on PR
+        uses: actions/github-script@v7
+        env:
+          PR_NUMBER: ${{ needs.find-pr-image.outputs.pr-number }}
+          IMAGE_TAG: ${{ needs.find-pr-image.outputs.image-tag }}
+        with:
+          script: |
+            const prNumber = process.env.PR_NUMBER;
+            const imageTag = process.env.IMAGE_TAG;
+
+            const body = `## 🚀 Deployed to Dev Environment
+
+            **Image Tag:** \`${imageTag}\`
+            **Namespace:** \`ozon-bot-dev\`
+            **Deployed by:** @${context.actor}
+
+            ### Monitoring
+
+            Wait ~2-3 minutes for ArgoCD to sync, then:
+
+            \`\`\`bash
+            # Check deployment status
+            kubectl get pods -n ozon-bot-dev
+
+            # View logs
+            kubectl logs -f -l app=ozon-bot -n ozon-bot-dev
+
+            # Check ArgoCD status
+            argocd app get ozon-bot-dev
+            \`\`\`
+
+            ### ⚠️ Important
+
+            - This is a **temporary** deployment in the shared dev environment
+            - Will be **overwritten** when:
+              - This PR is merged (main → production)
+              - Another PR is deployed to dev
+              - Main branch is updated
+
+            ### Rollback
+
+            If something goes wrong:
+            \`\`\`bash
+            argocd app rollback ozon-bot-dev
+            \`\`\`
+            `;
+
+            try {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: parseInt(prNumber),
+                body: body
+              });
+            } catch (error) {
+              console.log('Could not comment on PR:', error.message);
+            }
+
+      - name: Summary
+        env:
+          PR_NUMBER: ${{ needs.find-pr-image.outputs.pr-number }}
+          IMAGE_TAG: ${{ needs.find-pr-image.outputs.image-tag }}
+        run: |
+          cat >> $GITHUB_STEP_SUMMARY <<EOF
+          ## ✅ PR #${PR_NUMBER} Deployed to Dev
+
+          **Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}\`
+          **Namespace:** \`ozon-bot-dev\`
+
+          ### Next Steps
+
+          1. **Wait for ArgoCD Sync** (~2-3 minutes)
+             - ArgoCD detects Git changes automatically
+             - Check status: \`argocd app get ozon-bot-dev\`
+
+          2. **Test Your Changes**
+             \`\`\`bash
+             kubectl get pods -n ozon-bot-dev
+             kubectl logs -f -l app=ozon-bot -n ozon-bot-dev
+             \`\`\`
+
+          3. **When Done**
+             - Merge PR → main will deploy to production
+             - Or deploy another PR (this will be overwritten)
+
+          ---
+
+          **⚠️ Note:** Dev environment is shared. Deploying another PR will overwrite this.
+          EOF
