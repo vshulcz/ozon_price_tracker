@@ -26,15 +26,12 @@ jobs:
   wait-for-ci:
     name: Wait for CI
     runs-on: ubuntu-latest
-    needs: find-pr-image
     steps:
       - name: Wait for CI workflow to complete
         uses: actions/github-script@v7
-        env:
-          PR_SHA: ${{ needs.find-pr-image.outputs.pr-sha }}
         with:
           script: |
-            const sha = process.env.PR_SHA;
+            const sha = context.sha;
             const maxAttempts = 60;
             const waitTime = 20000;
 
@@ -81,51 +78,10 @@ jobs:
             throw new Error('❌ Timeout waiting for CI workflow to complete');
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
-  build-and-push:
-    name: Build and Push Image
-    runs-on: ubuntu-latest
-    needs: wait-for-ci
-    permissions:
-      contents: read
-      packages: write
-    outputs:
-      image-tag: ${{ steps.meta.outputs.version }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-
-      - name: Log in to Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=latest,enable={{is_default_branch}}
-            type=sha,prefix=sha-,format=short
-            type=ref,event=pr,prefix=pr-
-
-      - name: Build and push
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
   update-gitops:
     name: Update GitOps Manifests
     runs-on: ubuntu-latest
-    needs: build-and-push
+    needs: wait-for-ci
     permissions:
       contents: write
 
@@ -154,7 +110,7 @@ jobs:
           if [ -n "${{ inputs.image_tag }}" ]; then
             echo "tag=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
           else
-            echo "tag=sha-$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+            echo "tag=latest" >> $GITHUB_OUTPUT
           fi
 
       - name: Update kustomization.yaml
