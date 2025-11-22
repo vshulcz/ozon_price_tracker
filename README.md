@@ -1,6 +1,6 @@
-# Ozon Price Tracker Bot
-
 <div align="center">
+
+# Ozon Price Tracker Bot
 
 ![GitHub release (latest SemVer)](https://img.shields.io/github/v/release/vshulcz/ozon_price_tracker?sort=semver)
 [![CI](https://github.com/vshulcz/ozon_price_tracker/actions/workflows/ci.yml/badge.svg)](../../actions)

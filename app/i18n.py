@@ -30,14 +30,14 @@ i18n = I18N(
             "menu.settings": "⚙️ Настройки",
             "menu.back": "🏠 В главное меню",  # noqa: RUF001
             # Start
-            "start.title": "Привет! Я — бот для отслеживания цен на Ozon.",
+            "start.title": "Привет! Я - бот для отслеживания цен на Ozon.",
             "start.body": (
-                "Добавляй товары по ссылке, указывай целевую цену — и я оповещу, "
+                "Добавляй товары по ссылке, указывай целевую цену - и я оповещу, "
                 "когда цена станет выгодной.\n\n"
                 "Доступные разделы:\n"
-                "• ➕ Добавить товар — начать мастер добавления\n"  # noqa: RUF001
-                "• 📋 Список товаров — посмотреть и управлять\n"
-                "• ⚙️ Настройки — язык и параметры"
+                "• ➕ Добавить товар - начать мастер добавления\n"  # noqa: RUF001
+                "• 📋 Список товаров - посмотреть и управлять\n"
+                "• ⚙️ Настройки - язык и параметры"
             ),
             # Add Product
             "add.title": "Добавление товара",
@@ -66,7 +66,7 @@ i18n = I18N(
             # List and product card
             "list.title": "Ваши товары (стр. {page}/{pages})",
             "list.empty": 'У вас пока нет товаров. Нажмите "Добавить товар" в главном меню.',  # noqa: RUF001
-            "list.item": "{title} — {price}",
+            "list.item": "{title} - {price}",
             "product.title": "Карточка товара",
             "product.name": "Название: <b>{title}</b>",
             "product.link": "Ссылка: {url}",
@@ -108,11 +108,11 @@ i18n = I18N(
             # Start
             "start.title": "Hi! I help you track Ozon product prices.",
             "start.body": (
-                "Send a product link and a target price — I'll notify you when the price drops.\n\n"
+                "Send a product link and a target price - I'll notify you when the price drops.\n\n"
                 "Available sections:\n"
-                "• ➕ Add product — start the add wizard\n"  # noqa: RUF001
-                "• 📋 Products — view & manage\n"
-                "• ⚙️ Settings — language & options"
+                "• ➕ Add product - start the add wizard\n"  # noqa: RUF001
+                "• 📋 Products - view & manage\n"
+                "• ⚙️ Settings - language & options"
             ),
             # Add Product
             "add.title": "Add product",
@@ -141,7 +141,7 @@ Target price: <b>{target}</b>""",
             # List and product card
             "list.title": "Your products (p. {page}/{pages})",
             "list.empty": 'You have no products yet. Tap "Add product" in main menu.',
-            "list.item": "{title} — {price}",
+            "list.item": "{title} - {price}",
             "product.title": "Product details",
             "product.name": "Title: <b>{title}</b>",
             "product.link": "Link: {url}",

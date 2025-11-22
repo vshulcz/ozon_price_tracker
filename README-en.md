@@ -33,7 +33,7 @@ Production deployment guide with K3s and ArgoCD is available in [documentation](
 
 ## Notes
 
-* Scraping may violate Ozon T&Cs — use responsibly and at your own risk.
+* Scraping may violate Ozon T&Cs - use responsibly and at your own risk.
 * The project is for educational/demo purposes.
 * Try the demo: **[@mpricemonitoring_bot](https://t.me/mpricemonitoring_bot)**
 
