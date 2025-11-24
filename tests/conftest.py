@@ -76,7 +76,14 @@ class DummyMessage:
     _id_counter = 0
 
     def __init__(self, user_id=1000, chat_id=1):
-        self.from_user = SimpleNamespace(id=user_id)
+        self.from_user = SimpleNamespace(
+            id=user_id,
+            username="test_user",
+            first_name="Test",
+            last_name="User",
+            is_bot=False,
+            is_premium=False,
+        )
         self.chat = SimpleNamespace(id=chat_id)
         DummyMessage._id_counter += 1
         self.message_id = DummyMessage._id_counter
@@ -98,7 +105,14 @@ class DummyMessage:
 
 class DummyCallbackQuery:
     def __init__(self, message: DummyMessage | None = None, user_id=1000):
-        self.from_user = SimpleNamespace(id=user_id)
+        self.from_user = SimpleNamespace(
+            id=user_id,
+            username="test_user",
+            first_name="Test",
+            last_name="User",
+            is_bot=False,
+            is_premium=False,
+        )
         self.message = message or DummyMessage(user_id=user_id)
         self.answers = []
 

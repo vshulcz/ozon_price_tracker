@@ -53,8 +53,8 @@ class PostgresUserRepo:
         username: str | None = None,
         first_name: str | None = None,
         last_name: str | None = None,
-        is_bot: bool = False,
-        is_premium: bool = False,
+        is_bot: bool | None = None,
+        is_premium: bool | None = None,
     ) -> UserDTO:
         """Ensure user exists in DB. Create if new, update fields if existing."""
         res = await self.session.execute(select(User).where(User.tg_user_id == tg_user_id))
@@ -65,8 +65,10 @@ class PostgresUserRepo:
             u.username = username
             u.first_name = first_name
             u.last_name = last_name
-            u.is_bot = is_bot
-            u.is_premium = is_premium
+            if is_bot is not None:
+                u.is_bot = is_bot
+            if is_premium is not None:
+                u.is_premium = is_premium
             u.last_active_at = now
             u.total_interactions += 1
             u.updated_at = now
@@ -79,8 +81,8 @@ class PostgresUserRepo:
             username=username,
             first_name=first_name,
             last_name=last_name,
-            is_bot=is_bot,
-            is_premium=is_premium,
+            is_bot=is_bot if is_bot is not None else False,
+            is_premium=is_premium if is_premium is not None else False,
             last_active_at=now,
             total_interactions=1,
         )

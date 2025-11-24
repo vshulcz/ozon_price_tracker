@@ -24,7 +24,14 @@ async def cmd_start(message: Message, user_repo: PostgresUserRepo) -> None:
     if from_user is None:
         return
 
-    user = await user_repo.ensure_user(from_user.id)
+    user = await user_repo.ensure_user(
+        from_user.id,
+        username=from_user.username,
+        first_name=from_user.first_name,
+        last_name=from_user.last_name,
+        is_bot=from_user.is_bot,
+        is_premium=from_user.is_premium,
+    )
     await message.answer(
         _menu_text(user.language),
         reply_markup=main_menu_kb(i18n, user.language),
