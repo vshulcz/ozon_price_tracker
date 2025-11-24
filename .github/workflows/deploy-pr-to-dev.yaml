@@ -144,12 +144,24 @@ jobs:
         env:
           IMAGE_TAG: ${{ needs.find-pr-image.outputs.image-tag }}
         run: |
+          set -euo pipefail
+
           echo "Updating dev overlay with PR image: ${IMAGE_TAG}"
 
-          kustomize edit set image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}
+          if [ ! -f "kustomization.yaml" ]; then
+            echo "❌ Dev overlay not found"
+            exit 1
+          fi
 
-          echo "✅ Updated dev kustomization.yaml:"
-          cat kustomization.yaml
+          cp kustomization.yaml kustomization.yaml.backup
+
+          sed -i.bak "s|newTag:.*|newTag: ${IMAGE_TAG}|g" kustomization.yaml
+          rm -f kustomization.yaml.bak
+
+          echo "✅ Updated dev kustomization.yaml"
+          echo "Changes:"
+          diff kustomization.yaml.backup kustomization.yaml || true
+          rm -f kustomization.yaml.backup
 
       - name: Commit and push to main
         env:

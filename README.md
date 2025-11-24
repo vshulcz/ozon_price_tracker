@@ -9,7 +9,7 @@
 ![python](https://img.shields.io/badge/python-3.11+-blue)
 [![Telegram Demo](https://img.shields.io/badge/telegram-@mpricemonitoring__bot-2CA5E0?logo=telegram\&logoColor=white)](https://t.me/mpricemonitoring_bot)
 
-Телеграм‑бот для отслеживания цен на товары Ozon. Добавляйте ссылку на товар, задавайте целевую цену — бот проверяет цены 3 раза в день и присылает уведомление, когда цена стала выгодной.
+Телеграм‑бот для отслеживания цен на товары Ozon. Добавляйте ссылку на товар, задавайте целевую цену - бот проверяет цены 3 раза в день и присылает уведомление, когда цена стала выгодной.
 
 [Попробовать бота](https://t.me/mpricemonitoring_bot) • [Документация](docs/README.md)
 

@@ -83,6 +83,9 @@ jobs:
     runs-on: ubuntu-latest
     needs: wait-for-ci
     if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    environment:
+      name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'production' }}
+      url: https://github.com/${{ github.repository }}/deployments
     permissions:
       contents: write
 
@@ -118,12 +121,26 @@ jobs:
         working-directory: k8s/overlays/${{ steps.env.outputs.environment }}
         env:
           IMAGE_TAG: ${{ steps.tag.outputs.tag }}
+          ENVIRONMENT: ${{ steps.env.outputs.environment }}
         run: |
-          # Обновляем image tag в kustomization.yaml
-          kustomize edit set image ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}
+          set -euo pipefail
 
-          echo "Updated kustomization.yaml:"
-          cat kustomization.yaml
+          echo "Updating ${ENVIRONMENT} overlay with image: ${IMAGE_TAG}"
+
+          if [ ! -f "kustomization.yaml" ]; then
+            echo "❌ ${ENVIRONMENT} overlay not found"
+            exit 1
+          fi
+
+          cp kustomization.yaml kustomization.yaml.backup
+
+          sed -i.bak "s|newTag:.*|newTag: ${IMAGE_TAG}|g" kustomization.yaml
+          rm -f kustomization.yaml.bak
+
+          echo "✅ Updated ${ENVIRONMENT} kustomization.yaml"
+          echo "Changes:"
+          diff kustomization.yaml.backup kustomization.yaml || true
+          rm -f kustomization.yaml.backup
 
       - name: Commit and push changes
         env:
@@ -154,33 +171,60 @@ jobs:
           IMAGE_TAG: ${{ steps.tag.outputs.tag }}
         run: |
           cat >> $GITHUB_STEP_SUMMARY <<EOF
-          ## 🚀 GitOps Update Complete
+          ## ✅ ${ENVIRONMENT^} Deployment Initiated
 
           **Environment:** \`${ENVIRONMENT}\`
           **Image Tag:** \`${IMAGE_TAG}\`
           **Image:** \`${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${IMAGE_TAG}\`
+          **Deployed by:** @${{ github.actor }}
 
           ### Next Steps
 
-          1. **ArgoCD Sync**
-             - ArgoCD will automatically detect and sync changes
-             - Sync time: ~1-2 minutes
-             - Check ArgoCD UI for status
+          1. **Monitor ArgoCD Sync** (~1-2 minutes)
+             - ArgoCD will automatically detect Git changes
+             - Check application health in ArgoCD UI
 
           2. **Verify Deployment**
              \`\`\`bash
+             # Check pod status
              kubectl get pods -n ozon-bot-${ENVIRONMENT}
+
+             # Watch pod restart
+             kubectl get pods -n ozon-bot-${ENVIRONMENT} -w
+
+             # View logs
              kubectl logs -f -l app=ozon-bot -n ozon-bot-${ENVIRONMENT}
+
+             # Check ArgoCD status
+             argocd app get ozon-bot-${ENVIRONMENT}
              \`\`\`
 
           3. **Rollback (if needed)**
-             - Via ArgoCD UI: History → Select version → Rollback
-             - Via CLI: \`argocd app rollback ozon-bot-${ENVIRONMENT}\`
+             \`\`\`bash
+             # Via ArgoCD UI: History → Select version → Rollback
+             # Via CLI:
+             argocd app rollback ozon-bot-${ENVIRONMENT}
+
+             # Or re-run this workflow with previous image tag
+             \`\`\`
+
+          ### Useful Commands
+
+          \`\`\`bash
+          # Force ArgoCD hard refresh
+          argocd app sync ozon-bot-${ENVIRONMENT} --force
+
+          # Check deployment status
+          kubectl rollout status deployment/ozon-bot -n ozon-bot-${ENVIRONMENT}
+
+          # Get deployment history
+          kubectl rollout history deployment/ozon-bot -n ozon-bot-${ENVIRONMENT}
+          \`\`\`
 
           ---
 
-          **Deployed by:** @${{ github.actor }}
           **Commit:** ${{ github.sha }}
+          **Workflow:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           EOF
 
   notify-argocd:
