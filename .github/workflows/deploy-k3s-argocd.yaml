@@ -114,7 +114,15 @@ jobs:
           if [ -n "${{ inputs.image_tag }}" ]; then
             echo "tag=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
           else
-            echo "tag=latest" >> $GITHUB_OUTPUT
+            if git describe --exact-match --tags HEAD 2>/dev/null | grep -q '^v'; then
+              VERSION=$(git describe --exact-match --tags HEAD | sed 's/^v//')
+              echo "tag=${VERSION}" >> $GITHUB_OUTPUT
+              echo "✅ Using release version: ${VERSION}"
+            else
+              SHORT_SHA=$(git rev-parse --short HEAD)
+              echo "tag=sha-${SHORT_SHA}" >> $GITHUB_OUTPUT
+              echo "✅ Using commit-based tag: sha-${SHORT_SHA}"
+            fi
           fi
 
       - name: Update kustomization.yaml
@@ -134,7 +142,7 @@ jobs:
 
           cp kustomization.yaml kustomization.yaml.backup
 
-          sed -i.bak "s|newTag:.*|newTag: ${IMAGE_TAG}|g" kustomization.yaml
+          sed -i.bak "s|newTag:.*|newTag: \"${IMAGE_TAG}\"|g" kustomization.yaml
           rm -f kustomization.yaml.bak
 
           echo "✅ Updated ${ENVIRONMENT} kustomization.yaml"
