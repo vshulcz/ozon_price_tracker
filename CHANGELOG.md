@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.1](https://github.com/vshulcz/ozon_price_tracker/compare/v0.4.0...v0.4.1) (2025-11-25)
+
+
+### Bug Fixes
+
+* **db:** handle None values for is_bot and is_premium ([c2a2101](https://github.com/vshulcz/ozon_price_tracker/commit/c2a210165ce674e489382c97b574c15e1d02ae96))
+* **k8s:** prod autodeploy ([434bf9f](https://github.com/vshulcz/ozon_price_tracker/commit/434bf9f7471af1668a45c2972ed11224d2b52d24))
+* **k8s:** prod autodeploy ([132709c](https://github.com/vshulcz/ozon_price_tracker/commit/132709c395bcfdd28a13bf7e782766aa6b150f5f))
+* **k8s:** reduce production resource requests ([9ffc05c](https://github.com/vshulcz/ozon_price_tracker/commit/9ffc05cd39d898b31ede4c9cfc3e8a23b71ab52d))
+
 ## [0.4.0](https://github.com/vshulcz/ozon_price_tracker/compare/v0.3.0...v0.4.0) (2025-11-22)
 
 
