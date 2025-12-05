@@ -43,7 +43,10 @@ jobs:
           PR_DATA=$(gh pr view ${PR_NUMBER} --json headRefName,headRefOid)
 
           BRANCH=$(echo "$PR_DATA" | jq -r '.headRefName')
-          SHA=$(echo "$PR_DATA" | jq -r '.headRefOid')
+
+          # Fetch latest commit from the branch to get fresh SHA
+          git fetch origin ${BRANCH}
+          SHA=$(git rev-parse origin/${BRANCH})
           SHORT_SHA=$(echo "$SHA" | cut -c1-7)
 
           # Image tag format: sha-{short_sha}
