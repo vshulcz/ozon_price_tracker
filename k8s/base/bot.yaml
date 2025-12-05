@@ -6,6 +6,7 @@ metadata:
     app: ozon-bot
 spec:
   replicas: 1
+  revisionHistoryLimit: 2
   selector:
     matchLabels:
       app: ozon-bot
