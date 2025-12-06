@@ -4,6 +4,11 @@ on:
   push:
     branches: [ main, master ]
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Optional override for release version (e.g. 1.0.0)"
+        required: false
+        type: string
 
 permissions:
   contents: write
@@ -13,6 +18,15 @@ jobs:
   release-please:
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v4
+      - name: Release Please (manual override)
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release_version != ''
+        uses: googleapis/release-please-action@v4
+        with:
+          release-type: python
+          release-as: ${{ github.event.inputs.release_version }}
+
+      - name: Release Please
+        if: github.event_name != 'workflow_dispatch' || github.event.inputs.release_version == ''
+        uses: googleapis/release-please-action@v4
         with:
           release-type: python
