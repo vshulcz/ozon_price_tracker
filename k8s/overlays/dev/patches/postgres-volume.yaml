@@ -5,12 +5,22 @@ metadata:
 spec:
   template:
     spec:
+      initContainers:
+        - name: init-db
+          image: busybox
+          command: ['sh', '-c', 'mkdir -p /var/lib/postgresql/data/pgdata']
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
+      containers:
+        - name: postgres
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-storage
+              mountPath: /var/lib/postgresql/data
       volumes:
         - name: postgres-storage
           persistentVolumeClaim:
             claimName: postgres-pvc
-      containers:
-      - name: postgres
-        volumeMounts:
-          - name: postgres-storage
-            mountPath: /var/lib/postgresql/data
