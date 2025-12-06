@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.1](https://github.com/vshulcz/marketplace_price_tracker/compare/v1.0.0...v1.0.1) (2025-12-06)
+
+
+### Bug Fixes
+
+* **ci:** disabled updating images from release-please versions ([262071e](https://github.com/vshulcz/marketplace_price_tracker/commit/262071eba75e0d276d17289c18a09ef0d9368be5))
+
 ## [1.0.0](https://github.com/vshulcz/marketplace_price_tracker/compare/v0.5.0...v1.0.0) (2025-12-06)
 
 
