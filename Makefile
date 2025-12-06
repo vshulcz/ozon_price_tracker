@@ -8,7 +8,8 @@ COV_FLAGS      ?= --cov=app --cov-report=xml --cov-report=term-missing
 JUNIT_FILE     ?= pytest.xml
 
 .PHONY: build up down restart logs ps sh-bot sh-pg psql \
-        format lint type test unit cov cov-html test-junit precommit ci clean
+        format lint type test integration-test unit cov \
+		cov-html test-junit precommit ci clean
 
 build:
 	$(DC) -f $(COMPOSE_FILE) build
@@ -49,6 +50,9 @@ type:
 
 test:
 	PYTHONPATH=. uv run pytest $(PYTEST_FLAGS)
+
+integration-test:
+	RUN_INTEGRATION_TESTS=1 PYTHONPATH=. uv run pytest $(PYTEST_FLAGS)
 
 cov:
 	PYTHONPATH=. uv run pytest $(PYTEST_FLAGS) $(COV_FLAGS)

@@ -8,11 +8,13 @@ dependencies = [
     "aiogram>=3.22.0,<4.0",
     "apscheduler>=3.11.0,<4.0",
     "dotenv>=0.9.9,<1.0",
-    "playwright==1.56.0",
+    "selenium>=4.27.0,<5.0",
+    "selenium-stealth>=1.0.6,<2.0",
     "psycopg[binary]>=3.2,<4.0",
     "psycopg-pool>=3.2,<4.0",
     "sqlalchemy>=2.0.44,<3.0",
     "alembic>=1.17.2,<2.0",
+    "greenlet>=3.2.4",
 ]
 
 [tool.uv]
