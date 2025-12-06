@@ -18,7 +18,7 @@ images:
 patches:
 - path: patches/bot-resources.yaml
 - path: patches/postgres-resources.yaml
-- path: patches/postgres-volume-dev.yaml
+- path: patches/postgres-volume.yaml
 
 replicas:
 - count: 1
