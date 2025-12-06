@@ -1,5 +1,23 @@
 # Changelog
 
+## [1.0.0](https://github.com/vshulcz/marketplace_price_tracker/compare/v0.5.0...v1.0.0) (2025-12-06)
+
+
+### Features
+
+* add wb scraper ([5d00993](https://github.com/vshulcz/marketplace_price_tracker/commit/5d0099302eca8eeeb37fb65b8dec02400b0751c1))
+* add wb scraper ([339d02e](https://github.com/vshulcz/marketplace_price_tracker/commit/339d02ecf833d25347c0c1fb61db01ed3d4dd2dc))
+* **ci:** add release-please manual ([c71ee88](https://github.com/vshulcz/marketplace_price_tracker/commit/c71ee8842c1279f79a26050593e13472e21ef79f))
+* optimize ozon crawler ([896143c](https://github.com/vshulcz/marketplace_price_tracker/commit/896143c5affe8782cab96dd3b1222f0d9a4d9e34))
+
+
+### Bug Fixes
+
+* **ci:** postgres-pvc ([0271563](https://github.com/vshulcz/marketplace_price_tracker/commit/02715632fc819017a73fa064e8b221c63c24e649))
+* **ci:** postgres-pvc ([3b8fefc](https://github.com/vshulcz/marketplace_price_tracker/commit/3b8fefc5c336701ee9aa50f9070240f67ad5c4f4))
+* **ci:** postgres-pvc ([bd35fc5](https://github.com/vshulcz/marketplace_price_tracker/commit/bd35fc5fc8cff5525b87b39c55d2ef52c517caf4))
+* **ci:** postgres-pvc ([ff67b7c](https://github.com/vshulcz/marketplace_price_tracker/commit/ff67b7c9e5de6789bebc18f9cf570e1be9fbdcd9))
+
 ## [0.5.0](https://github.com/vshulcz/marketplace_price_tracker/compare/v0.4.0...v0.5.0) (2025-12-06)
 
 
