@@ -107,44 +107,25 @@ jobs:
       - name: Determine image tag
         id: tag
         run: |
-          if [ -n "${{ inputs.image_tag }}" ]; then
-            echo "tag=${{ inputs.image_tag }}" >> $GITHUB_OUTPUT
+          IMAGE_INPUT="${{ inputs.image_tag }}"
+          if [ -n "$IMAGE_INPUT" ]; then
+            echo "tag=$IMAGE_INPUT" >> $GITHUB_OUTPUT
+            echo "✅ Using provided tag: $IMAGE_INPUT"
           else
-            if git describe --exact-match --tags HEAD 2>/dev/null | grep -q '^v'; then
-              VERSION=$(git describe --exact-match --tags HEAD | sed 's/^v//')
-              echo "tag=${VERSION}" >> $GITHUB_OUTPUT
-              echo "✅ Using release version: ${VERSION}"
-            else
-              SHORT_SHA=$(git rev-parse --short HEAD)
-              echo "tag=sha-${SHORT_SHA}" >> $GITHUB_OUTPUT
-              echo "✅ Using commit-based tag: sha-${SHORT_SHA}"
-            fi
+            SHORT_SHA=$(git rev-parse --short HEAD)
+            echo "tag=sha-${SHORT_SHA}" >> $GITHUB_OUTPUT
+            echo "✅ Using commit-based tag: sha-${SHORT_SHA}"
           fi
 
       - name: Update kustomization.yaml
         working-directory: k8s/overlays/${{ steps.env.outputs.environment }}
         env:
           IMAGE_TAG: ${{ steps.tag.outputs.tag }}
-          ENVIRONMENT: ${{ steps.env.outputs.environment }}
         run: |
           set -euo pipefail
-
-          echo "Updating ${ENVIRONMENT} overlay with image: ${IMAGE_TAG}"
-
-          if [ ! -f "kustomization.yaml" ]; then
-            echo "❌ ${ENVIRONMENT} overlay not found"
-            exit 1
-          fi
-
-          cp kustomization.yaml kustomization.yaml.backup
-
-          sed -i.bak "s|newTag:.*|newTag: \"${IMAGE_TAG}\"|g" kustomization.yaml
-          rm -f kustomization.yaml.bak
-
-          echo "✅ Updated ${ENVIRONMENT} kustomization.yaml"
-          echo "Changes:"
-          diff kustomization.yaml.backup kustomization.yaml || true
-          rm -f kustomization.yaml.backup
+          kustomize edit set image ghcr.io/vshulcz/marketplace_price_tracker=ghcr.io/vshulcz/marketplace_price_tracker:${IMAGE_TAG}
+          echo "✅ Updated image to ${IMAGE_TAG}"
+          cat kustomization.yaml
 
       - name: Commit and push changes
         env:
