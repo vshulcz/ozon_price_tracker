@@ -18,14 +18,7 @@ images:
 patches:
 - path: patches/bot-resources.yaml
 - path: patches/postgres-resources.yaml
-
-patchesJson6902:
-- path: patches/postgres-volume.yaml
-  target:
-    group: apps
-    kind: Deployment
-    name: postgres
-    version: v1
+- path: patches/postgres-volume-dev.yaml
 
 replicas:
 - count: 1

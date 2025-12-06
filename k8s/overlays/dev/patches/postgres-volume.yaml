@@ -1,6 +1,16 @@
----
-- op: replace
-  path: /spec/template/spec/volumes/0
-  value:
-    name: postgres-storage
-    emptyDir: {}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  template:
+    spec:
+      volumes:
+        - name: postgres-storage
+          persistentVolumeClaim:
+            claimName: postgres-pvc
+      containers:
+      - name: postgres
+        volumeMounts:
+          - name: postgres-storage
+            mountPath: /var/lib/postgresql/data
