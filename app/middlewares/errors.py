@@ -9,6 +9,7 @@ from aiogram.types import CallbackQuery, Message
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.i18n import Lang, i18n
+from app.metrics import bot_errors_total
 from app.repositories.users import PostgresUserRepo
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,7 @@ class ErrorsMiddleware:
             user_id = None
             username = None
             event_type = type(event).__name__
+            bot_errors_total.labels(event_type).inc()
 
             with contextlib.suppress(Exception):
                 fu = getattr(event, "from_user", None)

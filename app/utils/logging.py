@@ -5,6 +5,8 @@ from collections.abc import Callable
 from functools import wraps
 from typing import TYPE_CHECKING, Any, TypeVar
 
+from app.metrics import bot_errors_total, bot_updates_total, notifications_sent_total
+
 if TYPE_CHECKING:
     from aiogram.types import CallbackQuery, Message, User
 
@@ -40,6 +42,7 @@ def log_message_handler(action_name: str) -> Callable[[F], F]:
                     _format_user(from_user),
                     (message.text or "")[:100],
                 )
+                bot_updates_total.labels("message").inc()
             return await func(message, *args, **kwargs)
 
         return wrapper  # type: ignore
@@ -59,6 +62,7 @@ def log_callback_handler(action_name: str) -> Callable[[F], F]:
                 _format_user(from_user),
                 callback_data,
             )
+            bot_updates_total.labels("callback").inc()
             return await func(cb, *args, **kwargs)
 
         return wrapper  # type: ignore
@@ -111,6 +115,7 @@ def log_notification_sent(user_id: int, product_id: int, notification_type: str)
         product_id,
         notification_type,
     )
+    notifications_sent_total.labels(notification_type).inc()
 
 
 def log_error(context: str, error: Exception, **extra: Any) -> None:
@@ -121,6 +126,7 @@ def log_error(context: str, error: Exception, **extra: Any) -> None:
         " | ".join(f"{k}={v}" for k, v in extra.items()) if extra else "no extra info",
         exc_info=True,
     )
+    bot_errors_total.labels(context).inc()
 
 
 def log_scheduler_event(event: str, **extra: Any) -> None:
