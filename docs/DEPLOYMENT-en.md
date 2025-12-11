@@ -194,10 +194,73 @@ K3s Cluster
 Configured via ConfigMap (`k8s/base/configmap.yaml`):
 
 - `LOG_LEVEL`: Logging level (default: INFO)
-- `AUTO_MIGRATE`: Auto-run Alembic migrations (default: true)
-- `PRICE_CHECK_HOURS`: Hours for price checks (default: 9,15,21)
+- `AUTO_MIGRATE`: Run Alembic migrations automatically (default: true)
+- `PRICE_CHECK_HOURS`: Comma-separated hours for price checks (default: 9,15,21)
 - `POSTGRES_DB`: Database name
 - `POSTGRES_USER`: Database user
+- `METRICS_ENABLED`: Toggle Prometheus endpoint (default: true)
+- `METRICS_HOST`: Host for the metrics HTTP server (default: 0.0.0.0)
+- `METRICS_PORT`: Port for the endpoint (default: 8000)
+
+### Monitoring & metrics
+
+- The bot exposes a Prometheus endpoint on `http://<pod-ip>:8000/metrics` (tunable through `METRICS_HOST`/`METRICS_PORT`).
+- `k8s/base/service.yaml` adds a ClusterIP Service with `prometheus.io/*` annotations, so Prometheus Operator or any standard Prometheus scrape config can discover it via the `app=marketplace-bot` label.
+- Use `METRICS_ENABLED=false` if you need to disable metrics in specific environments.
+
+#### Prometheus + Grafana via ArgoCD
+
+- The repo ships with a dedicated Kustomize stack under `k8s/monitoring/` (common + env overlays) that defines Prometheus CR, ServiceMonitor, Grafana Operator CR and dashboard ConfigMap.
+- The monitoring stack is deployed via dedicated ArgoCD applications (`k8s/argocd/application-monitoring-{dev,prod}.yaml`), while `k8s/argocd/application-{dev,prod}.yaml` handle the bot itself. This separation prevents namespace conflicts, simplifies RBAC, and lets you roll out observability independently.
+- The dev overlay uses the `monitoring-dev` namespace with a 5Gi PVC, 3-day retention and default admin/admin credentials; prod uses `monitoring`, 50Gi PVC, 15-day retention and a stronger password from `k8s/monitoring/production/patches`.
+- Grafana automatically mounts dashboards from the `marketplace-grafana-dashboards` ConfigMap. Access it via `kubectl port-forward svc/marketplace-grafana -n monitoring 3000:3000` (or `monitoring-dev`).
+- Prometheus is exposed through `svc/marketplace-prometheus`; use `kubectl port-forward svc/marketplace-prometheus -n monitoring 9090:9090` to open the UI locally.
+
+##### Operator prerequisites
+
+Before the first sync of the monitoring overlay you must have both Prometheus Operator and Grafana Operator (their CRDs + controllers) installed in the cluster, otherwise the CR objects created by ArgoCD will never reconcile. Two common approaches:
+
+**Via kubectl (server-side apply).** This mode is required for Prometheus CRDs because standard `kubectl apply` would exceed the annotation size limit.
+
+```bash
+# Prometheus Operator (cluster-wide bundle: CRD + controller)
+kubectl apply --server-side --force-conflicts \
+  -f https://github.com/prometheus-operator/prometheus-operator/releases/latest/download/bundle.yaml
+
+# Grafana Operator (cluster-scoped kustomize + CRDs)
+kubectl apply --server-side --force-conflicts \
+  -f https://github.com/grafana/grafana-operator/releases/download/v5.20.0/kustomize-cluster_scoped.yaml
+kubectl apply --server-side --force-conflicts \
+  -f https://github.com/grafana/grafana-operator/releases/download/v5.20.0/crds.yaml
+```
+
+After applying, confirm the controllers are `Running` in the `prometheus-operator` / `grafana` namespaces and that CRDs such as `prometheuses.monitoring.coreos.com` and `grafanas.grafana.integreatly.org` (note the extra `.grafana.` segment) exist.
+
+**Via Helm.** If you prefer Helm charts:
+
+```bash
+# Prometheus Operator (without bundled Prometheus/Grafana instances)
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm upgrade --install prometheus-operator prometheus-community/kube-prometheus-stack \
+  --namespace monitoring-operators --create-namespace \
+  --set grafana.enabled=false --set prometheus.enabled=false --set alertmanager.enabled=false
+
+# Grafana Operator
+helm repo add grafana https://grafana.github.io/helm-charts
+helm upgrade --install grafana-operator grafana/grafana-operator \
+  --namespace monitoring-operators --create-namespace
+```
+
+Any other method (OLM, Terraform, etc.) works too-the critical requirement is that CRDs like `prometheuses.monitoring.coreos.com`, `servicemonitors.monitoring.coreos.com`, and `grafanas.grafana.integreatly.org` plus their operators are present before ArgoCD applies our monitoring stack.
+
+##### Configuring Grafana credentials
+
+Admin login/password values live directly in the Kustomize patches:
+
+- Dev: `k8s/monitoring/dev/patches/grafana-auth.yaml` (admin/admin)
+- Production: `k8s/monitoring/production/patches/grafana-auth.yaml` (admin/admin)
+
+Edit those files (or provide your own overlay) to set environment-specific credentials. After committing the change and letting ArgoCD sync, Grafana pods restart with the new password - make sure to store the real values in your secrets manager/runbook for future reference.
 
 ## Database Management
 

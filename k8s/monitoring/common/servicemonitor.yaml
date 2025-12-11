@@ -1,0 +1,17 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: marketplace-bot
+  labels:
+    app.kubernetes.io/name: marketplace-bot-servicemonitor
+spec:
+  namespaceSelector:
+    any: true
+  selector:
+    matchLabels:
+      app: marketplace-price-tracker
+  endpoints:
+    - port: metrics
+      interval: 15s
+      path: /metrics
+      scheme: http

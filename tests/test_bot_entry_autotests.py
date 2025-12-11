@@ -150,6 +150,9 @@ async def test_main_wires_everything_and_cleans_up(monkeypatch):
         log_level = "INFO"
         price_check_hours = "1,2,3"
         auto_migrate = True
+        metrics_enabled: bool = True
+        metrics_host: str = "0.0.0.0"  # noqa: S104
+        metrics_port: int = 8000
 
     monkeypatch.setattr(botmod.Settings, "from_env", staticmethod(lambda: _S))
 

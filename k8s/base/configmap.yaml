@@ -8,3 +8,6 @@ data:
   PRICE_CHECK_HOURS: "9,15,21"
   POSTGRES_DB: "price_tracker_bot"
   POSTGRES_USER: "admin"
+  METRICS_ENABLED: "true"
+  METRICS_HOST: "0.0.0.0"
+  METRICS_PORT: "8000"

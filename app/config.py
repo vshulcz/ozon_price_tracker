@@ -15,6 +15,9 @@ class Settings:
     log_level: str = "INFO"
     price_check_hours: str = "9,15,21"
     auto_migrate: bool = True
+    metrics_enabled: bool = True
+    metrics_host: str = "0.0.0.0"  # noqa: S104
+    metrics_port: int = 8000
 
     @staticmethod
     def from_env() -> Settings:
@@ -29,6 +32,9 @@ class Settings:
             )
 
         auto_migrate = os.getenv("AUTO_MIGRATE", "true").lower() in ("true", "1", "yes")
+        metrics_enabled = os.getenv("METRICS_ENABLED", "true").lower() in ("true", "1", "yes")
+        metrics_host = os.getenv("METRICS_HOST", "0.0.0.0")  # noqa: S104
+        metrics_port = int(os.getenv("METRICS_PORT", "8000"))
 
         return Settings(
             bot_token=token,
@@ -36,4 +42,7 @@ class Settings:
             log_level=os.getenv("LOG_LEVEL", "INFO"),
             price_check_hours=os.getenv("PRICE_CHECK_HOURS", "9,15,21"),
             auto_migrate=auto_migrate,
+            metrics_enabled=metrics_enabled,
+            metrics_host=metrics_host,
+            metrics_port=metrics_port,
         )

@@ -198,6 +198,70 @@ K3s Cluster
 - `PRICE_CHECK_HOURS`: Часы проверки цен (по умолчанию: 9,15,21)
 - `POSTGRES_DB`: Имя базы данных
 - `POSTGRES_USER`: Пользователь базы данных
+- `METRICS_ENABLED`: Включить/отключить Prometheus-эндпоинт (по умолчанию: true)
+- `METRICS_HOST`: Хост для HTTP-сервера метрик (по умолчанию: 0.0.0.0)
+- `METRICS_PORT`: Порт эндпоинта (по умолчанию: 8000)
+
+### Мониторинг и метрики
+
+- Эндпоинт `http://<pod-ip>:8000/metrics` (контролируется `METRICS_HOST`/`METRICS_PORT`) отдаёт Prometheus-совместимые метрики.
+- В `k8s/base/service.yaml` описан ClusterIP Service c аннотациями `prometheus.io/*`, поэтому Prometheus Operator автоматически подхватит таргет (или нужно подключить ServiceMonitor по тем же меткам `app: marketplace-bot`).
+- Переменная `METRICS_ENABLED` управляет запуском HTTP-сервера (по умолчанию включён).
+
+#### Prometheus + Grafana через ArgoCD
+
+- В репозитории добавлен отдельный Kustomize слой `k8s/monitoring/` (common + overlays per env) c Prometheus CR, ServiceMonitor и Grafana Operator CR.
+- Мониторинг теперь развёртывается отдельными ArgoCD-приложениями (`k8s/argocd/application-monitoring-{dev,prod}.yaml`), а `application-{dev,prod}.yaml` управляют самим ботом. Такой подход устраняет конфликт namespace, упрощает права RBAC и позволяет обновлять стек наблюдения независимо от приложения.
+- Для работы требуется установленный Prometheus Operator & Grafana Operator (см. kube-prometheus-stack или CRDs). Репозиторий предполагает, что CRDs уже присутствуют в кластере.
+- Dev overlay использует namespace `monitoring-dev` c PVC 5Gi и дефолтным admin/admin паролем; prod - namespace `monitoring`, retention 15d и отдельный пароль (см. `k8s/monitoring/production/patches`).
+- Grafana в автоматическом режиме подцепит дашборд из ConfigMap `marketplace-grafana-dashboards`. Для доступа используйте port-forward: `kubectl port-forward svc/marketplace-grafana -n monitoring 3000:3000` (или `monitoring-dev`).
+- Prometheus доступен через `kubectl port-forward svc/marketplace-prometheus -n monitoring 9090:9090`.
+
+##### Требования к операторам
+
+Перед первой синхронизацией мониторинга в кластере уже должны работать Prometheus Operator и Grafana Operator, иначе создаваемые ArgoCD CR просто повиснут без контроллеров. Есть два типовых способа установки:
+
+**Через kubectl (server-side apply).** Такой режим обязателен для Prometheus CRD из-за ограничения Kubernetes на размер аннотаций (`kubectl.kubernetes.io/last-applied-configuration`):
+
+```bash
+# Prometheus Operator (кластерный bundle, CRD + контроллер)
+kubectl apply --server-side --force-conflicts \
+  -f https://github.com/prometheus-operator/prometheus-operator/releases/latest/download/bundle.yaml
+
+# Grafana Operator (кластерный kustomize + отдельные CRD)
+kubectl apply --server-side --force-conflicts \
+  -f https://github.com/grafana/grafana-operator/releases/download/v5.20.0/kustomize-cluster_scoped.yaml
+kubectl apply --server-side --force-conflicts \
+  -f https://github.com/grafana/grafana-operator/releases/download/v5.20.0/crds.yaml
+```
+
+После применения следует проверить, что поды операторов в `prometheus-operator`/`grafana` namespace находятся в `Running`, а среди CRD присутствуют объекты `*.monitoring.coreos.com` и `*.grafana.integreatly.org` (например, `grafanas.grafana.integreatly.org`).
+
+**Через Helm**:
+
+```bash
+# Prometheus Operator (без bundled Prometheus/Grafana)
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm upgrade --install prometheus-operator prometheus-community/kube-prometheus-stack \
+  --namespace monitoring-operators --create-namespace \
+  --set grafana.enabled=false --set prometheus.enabled=false --set alertmanager.enabled=false
+
+# Grafana Operator
+helm repo add grafana https://grafana.github.io/helm-charts
+helm upgrade --install grafana-operator grafana/grafana-operator \
+  --namespace monitoring-operators --create-namespace
+```
+
+Любой другой способ (OLM, Terraform и т.д.) тоже подходит - главное, чтобы перед синхронизацией ArgoCD уже существовали CRD `prometheuses.monitoring.coreos.com`, `servicemonitors.monitoring.coreos.com`, `grafanas.grafana.integreatly.org` и управляющие их операторы.
+
+##### Настройка учётных данных Grafana
+
+По умолчанию логин/пароль задаются прямо в манифестах:
+
+- Dev: `k8s/monitoring/dev/patches/grafana-auth.yaml` (admin/admin)
+- Prod: `k8s/monitoring/production/patches/grafana-auth.yaml` (admin/admin)
+
+Отредактируйте соответствующий файл перед деплоем (или переопределите patch через Kustomize) и задокументируйте реальные значения в менеджере секретов. После изменения пароля сделайте `git commit` и синхронизируйте ArgoCD - Grafana перезапустится с новыми кредами.
 
 ## Управление базой данных
 

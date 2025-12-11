@@ -17,6 +17,7 @@ from app.handlers import add_product as add_handlers
 from app.handlers import products as products_handlers
 from app.handlers import settings as settings_handlers
 from app.handlers import start as start_handlers
+from app.metrics import start_metrics_server, stop_metrics_server
 from app.middlewares.db_session import DBSessionMiddleware
 from app.middlewares.errors import ErrorsMiddleware
 from app.scheduler import setup_scheduler
@@ -74,6 +75,17 @@ async def main() -> None:
     await bot.delete_webhook(drop_pending_updates=True)
     await setup_bot_commands(bot)
 
+    if settings.metrics_enabled:
+        try:
+            await start_metrics_server(settings.metrics_host, settings.metrics_port)
+            logger.info(
+                "Prometheus metrics exposed at http://%s:%s/metrics",
+                settings.metrics_host,
+                settings.metrics_port,
+            )
+        except Exception as exc:
+            logger.warning("Failed to start metrics server: %s", exc)
+
     scheduler = setup_scheduler(bot, settings.price_check_hours, session_maker)
 
     logger.info("Bot started. Polling with scheduler...")
@@ -86,6 +98,8 @@ async def main() -> None:
             await bot.session.close()
         with suppress(Exception):
             await shutdown_browser()
+        with suppress(Exception):
+            await stop_metrics_server()
         with suppress(Exception):
             await engine.dispose()
 
