@@ -10,3 +10,4 @@ resources:
 patches:
     - path: patches/prometheus-storage.yaml
     - path: patches/grafana-auth.yaml
+    - path: patches/grafana-storage.yaml
