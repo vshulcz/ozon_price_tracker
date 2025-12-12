@@ -1,0 +1,13 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDashboard
+metadata:
+  name: marketplace-grafana-dashboard
+  labels:
+    app.kubernetes.io/name: marketplace-grafana
+spec:
+  instanceSelector:
+    matchLabels:
+      app.kubernetes.io/name: marketplace-grafana
+  configMapRef:
+    name: marketplace-grafana-dashboards
+    key: marketplace-dashboard.json

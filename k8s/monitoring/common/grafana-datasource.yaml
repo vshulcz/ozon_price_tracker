@@ -1,0 +1,20 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaDatasource
+metadata:
+    name: marketplace-prometheus-datasource
+    labels:
+        app.kubernetes.io/name: marketplace-grafana
+spec:
+    instanceSelector:
+        matchLabels:
+            app.kubernetes.io/name: marketplace-grafana
+    datasource:
+        name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://marketplace-prometheus:9090
+        jsonData:
+            timeInterval: 15s
+            httpMethod: POST
+        editable: true
+        isDefault: true
