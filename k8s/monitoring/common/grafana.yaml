@@ -5,6 +5,7 @@ metadata:
     labels:
         app.kubernetes.io/name: marketplace-grafana
 spec:
+    version: "11.3.0"
     config:
         auth:
             disable_login_form: "false"
@@ -12,7 +13,6 @@ spec:
         security:
             admin_user: admin
             admin_password: grafana
-    persist: false
     dashboards:
         configMaps:
             - name: marketplace-grafana-dashboards
