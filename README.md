@@ -58,6 +58,13 @@ make up && make logs
 * Проект для демонстрационных/учебных целей.
 * Попробуйте демо: **[@mpricemonitoring_bot](https://t.me/mpricemonitoring_bot)**
 
+## Мониторинг
+
+* Приложение предоставляет [Prometheus](https://prometheus.io/) метрики по адресу `http://<host>:8000/metrics` (порт и хост настраиваются переменными `METRICS_HOST`/`METRICS_PORT`).
+* В Kubernetes развёрнут `Service` с аннотациями `prometheus.io/*`, поэтому достаточно подключить Prometheus Operator или ServiceMonitor для сбора метрик.
+* Метрики можно отключить переменной `METRICS_ENABLED=false`, по умолчанию включены для последующего автоскейлинга/алертинга.
+* При деплое через ArgoCD бот и мониторинг управляются отдельными приложениями: `k8s/argocd/application-{dev,prod}.yaml` обслуживают само приложение, а `k8s/argocd/application-monitoring-{dev,prod}.yaml` - Prometheus/Grafana (CR операторов). Подробности о доступе и инфраструктуре мониторинга описаны в разделе «Prometheus + Grafana через ArgoCD» файла `docs/DEPLOYMENT.md`.
+
 ## Как помочь
 
 * PR приветствуются - запускайте линтеры/тесты и добавляйте покрытие.

@@ -37,6 +37,13 @@ Production deployment guide with K3s and ArgoCD is available in [documentation](
 * The project is for educational/demo purposes.
 * Try the demo: **[@mpricemonitoring_bot](https://t.me/mpricemonitoring_bot)**
 
+## Monitoring
+
+* The bot exposes [Prometheus](https://prometheus.io/) metrics on `http://<host>:8000/metrics` (host/port are controlled via `METRICS_HOST` and `METRICS_PORT`).
+* In Kubernetes a dedicated `Service` with `prometheus.io/*` annotations is created, so Prometheus Operator / ServiceMonitor can scrape it out of the box.
+* Set `METRICS_ENABLED=false` to disable the endpoint if you do not plan to collect metrics or autoscale by them.
+* When deploying via ArgoCD the bot and monitoring stacks are managed by separate applications: `k8s/argocd/application-{dev,prod}.yaml` deploy the bot itself, while `k8s/argocd/application-monitoring-{dev,prod}.yaml` roll out Prometheus/Grafana (operator CRs). Check the “Prometheus + Grafana via ArgoCD” section in `docs/DEPLOYMENT-en.md` for credentials and access tips.
+
 ## Contributing
 
 * PRs are welcome - please run linters/tests locally and add coverage where possible.

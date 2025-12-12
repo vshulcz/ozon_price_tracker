@@ -54,6 +54,21 @@ spec:
                 configMapKeyRef:
                   name: bot-config
                   key: PRICE_CHECK_HOURS
+            - name: METRICS_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: bot-config
+                  key: METRICS_ENABLED
+            - name: METRICS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: bot-config
+                  key: METRICS_HOST
+            - name: METRICS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: bot-config
+                  key: METRICS_PORT
             - name: POSTGRES_DB
               valueFrom:
                 configMapKeyRef:

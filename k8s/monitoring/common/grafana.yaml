@@ -1,0 +1,26 @@
+apiVersion: integreatly.org/v1alpha1
+kind: Grafana
+metadata:
+  name: marketplace-grafana
+  labels:
+    app.kubernetes.io/name: marketplace-grafana
+spec:
+  ingress:
+    enabled: false
+  config:
+    auth:
+      disable_login_form: false
+      disable_signout_menu: false
+    security:
+      admin_user: admin
+      admin_password: grafana
+  persist: true
+  dataStorage:
+    type: pvc
+    className: standard
+    accessModes:
+      - ReadWriteOnce
+    size: 5Gi
+  dashboards:
+    configMaps:
+      - name: marketplace-grafana-dashboards
