@@ -16,7 +16,7 @@ curl -sfL https://get.k3s.io | sh -
 
 # 2. Install ArgoCD
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -k k8s/argocd/install -n argocd
 
 # 3. Create secrets
 kubectl create secret generic bot-secrets -n marketplace-bot-prod \
@@ -58,11 +58,11 @@ kubectl get nodes
 
 ### 2. ArgoCD Installation
 
-Install ArgoCD:
+Install the hardened ArgoCD manifest (adds repo-server resource requests, relaxed probes, and limited parallelism so it survives on small clusters):
 
 ```bash
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -k k8s/argocd/install -n argocd
 ```
 
 Wait for pods:

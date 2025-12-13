@@ -1,0 +1,83 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+    - https://raw.githubusercontent.com/argoproj/argo-cd/v3.2.1/manifests/install.yaml
+
+patches:
+    - target:
+          kind: ConfigMap
+          name: argocd-cmd-params-cm
+      patch: |-
+          apiVersion: v1
+          kind: ConfigMap
+          metadata:
+            name: argocd-cmd-params-cm
+          data:
+            reposerver.parallelism.limit: "3"
+
+    - target:
+          kind: Deployment
+          name: argocd-repo-server
+      patch: |-
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: argocd-repo-server
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: argocd-repo-server
+                    resources:
+                      requests:
+                        cpu: 150m
+                        memory: 192Mi
+                      limits:
+                        cpu: 400m
+                        memory: 384Mi
+                    readinessProbe:
+                      httpGet:
+                        path: /healthz
+                        port: 8084
+                      initialDelaySeconds: 15
+                      periodSeconds: 15
+                      timeoutSeconds: 5
+                      failureThreshold: 8
+                    livenessProbe:
+                      httpGet:
+                        path: /healthz?full=true
+                        port: 8084
+                      initialDelaySeconds: 30
+                      periodSeconds: 30
+                      timeoutSeconds: 5
+                      failureThreshold: 8
+
+    - target:
+          kind: StatefulSet
+          name: argocd-application-controller
+      patch: |-
+          apiVersion: apps/v1
+          kind: StatefulSet
+          metadata:
+            name: argocd-application-controller
+          spec:
+            template:
+              spec:
+                containers:
+                  - name: argocd-application-controller
+                    resources:
+                      requests:
+                        cpu: 250m
+                        memory: 512Mi
+                      limits:
+                        cpu: 750m
+                        memory: 1Gi
+                    readinessProbe:
+                      httpGet:
+                        path: /healthz
+                        port: 8082
+                      initialDelaySeconds: 10
+                      periodSeconds: 15
+                      timeoutSeconds: 5
+                      failureThreshold: 6
