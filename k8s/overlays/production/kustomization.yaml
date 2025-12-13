@@ -2,22 +2,22 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-    - ../../base
-    - postgres-backup.yaml
+- ../../base
+- postgres-backup.yaml
 
 namespace: marketplace-bot-prod
 
 images:
 - name: ghcr.io/vshulcz/marketplace_price_tracker
   newName: ghcr.io/vshulcz/marketplace_price_tracker
-  newTag: sha-bf5ea99
+  newTag: sha-05bf2f7
 
 patches:
-    - path: patches/bot-resources.yaml
-    - path: patches/postgres-resources.yaml
+- path: patches/bot-resources.yaml
+- path: patches/postgres-resources.yaml
 
 replicas:
-    - count: 1
-      name: marketplace-bot
-    - count: 1
-      name: postgres
+- count: 1
+  name: marketplace-bot
+- count: 1
+  name: postgres
