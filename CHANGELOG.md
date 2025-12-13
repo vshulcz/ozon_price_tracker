@@ -1,5 +1,39 @@
 # Changelog
 
+## [1.1.0](https://github.com/vshulcz/marketplace_price_tracker/compare/v1.0.0...v1.1.0) (2025-12-13)
+
+
+### Features
+
+* add prometheus+grafana ([dee2915](https://github.com/vshulcz/marketplace_price_tracker/commit/dee29159fb28ea8ca09240315efd2516331c97fe))
+* add prometheus+grafana ([ff5ff25](https://github.com/vshulcz/marketplace_price_tracker/commit/ff5ff2556f2c98238f649df6c726d23c05228d55))
+* **grafana:** dashboards added ([24255f3](https://github.com/vshulcz/marketplace_price_tracker/commit/24255f369322e68ce01ab7c70c07a461d208fe20))
+* regularly backuping ([1b718e4](https://github.com/vshulcz/marketplace_price_tracker/commit/1b718e476b97ac9d09f009aa0e84d1a9fd3cee47))
+
+
+### Bug Fixes
+
+* app name ([c93b308](https://github.com/vshulcz/marketplace_price_tracker/commit/c93b308de58c8f97f92baf014c353cd85786a5e9))
+* **ci:** disabled updating images from release-please versions ([262071e](https://github.com/vshulcz/marketplace_price_tracker/commit/262071eba75e0d276d17289c18a09ef0d9368be5))
+* **grafana:** deployment issue ([3533da7](https://github.com/vshulcz/marketplace_price_tracker/commit/3533da715d242f00630030d0ba449ed2114ba036))
+* **grafana:** deployment issue ([1b1c575](https://github.com/vshulcz/marketplace_price_tracker/commit/1b1c5755b643d710f6fa8a8a4a87135715094b58))
+* **grafana:** deployment issue ([8a6f5d7](https://github.com/vshulcz/marketplace_price_tracker/commit/8a6f5d773f20e0cd7e827d9b5a5b18deea24b7da))
+* **grafana:** deployment issue ([9763d13](https://github.com/vshulcz/marketplace_price_tracker/commit/9763d13ae58a8ce6714fd6a9d9925e321728aa69))
+* **grafana:** deployment issue ([6278168](https://github.com/vshulcz/marketplace_price_tracker/commit/6278168b68bab9ff85babcbc1e8e82bc3cf9d5b1))
+* **grafana:** monitoring dev storage/ingress and add prod persistence ([da91495](https://github.com/vshulcz/marketplace_price_tracker/commit/da91495b0623f9e87c96f28b7137785764641146))
+* increase resources and add shared memory for Playwright browser ([1d4d018](https://github.com/vshulcz/marketplace_price_tracker/commit/1d4d018a3e68d63a24e43e73a2e66830d78e6b00))
+* increase resources for playwright ([9a66a05](https://github.com/vshulcz/marketplace_price_tracker/commit/9a66a05be969c81ed9c8eed4bb19e7cf046ea2dc))
+* metrics endpoint charset compatibility with aiohttp 3.10 ([bf5ea99](https://github.com/vshulcz/marketplace_price_tracker/commit/bf5ea9920ad51ad8753e6a2a0c8d30e9f0bb49b3))
+* metrics endpoint charset compatibility with aiohttp 3.10+ ([ab031ae](https://github.com/vshulcz/marketplace_price_tracker/commit/ab031ae359e1a42d9d45d56399376fc7473f6beb))
+* **prometheus:** metric names ([3f06fb4](https://github.com/vshulcz/marketplace_price_tracker/commit/3f06fb4ebb33199c7679eeb7d1b9b438adab41cd))
+* reduced resources utilization ([5d250dd](https://github.com/vshulcz/marketplace_price_tracker/commit/5d250dd81769e08052432a1f724ebe5f21df3f55))
+* remove labels from kustomization to avoid immutable selector errors ([05bf2f7](https://github.com/vshulcz/marketplace_price_tracker/commit/05bf2f769973ae5c02750f632d54e60136269c68))
+
+
+### Performance Improvements
+
+* disable access logs for metrics endpoint ([df78802](https://github.com/vshulcz/marketplace_price_tracker/commit/df78802684cecdb9da7cddf75be77c43e2ac23b9))
+
 ## [1.0.0](https://github.com/vshulcz/marketplace_price_tracker/compare/v0.5.0...v1.0.0) (2025-12-06)
 
 
