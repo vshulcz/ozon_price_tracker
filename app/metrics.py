@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from aiohttp import web
-from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+from prometheus_client import Counter, Gauge, Histogram, generate_latest
 
 # Core bot metrics
 bot_updates_total = Counter(
@@ -74,7 +74,13 @@ _runner: web.AppRunner | None = None
 
 async def _metrics_handler(_: web.Request) -> web.Response:
     payload = generate_latest()
-    return web.Response(body=payload, content_type=CONTENT_TYPE_LATEST)
+    # aiohttp 3.10+ requires charset to be passed separately, not in content_type
+    # CONTENT_TYPE_LATEST = "text/plain; version=0.0.4; charset=utf-8"
+    return web.Response(
+        body=payload,
+        content_type="text/plain; version=0.0.4",
+        charset="utf-8",
+    )
 
 
 async def start_metrics_server(host: str, port: int) -> None:
