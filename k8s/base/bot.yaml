@@ -93,11 +93,11 @@ spec:
                         value: "postgresql+psycopg://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)"
                   resources:
                       requests:
-                          memory: "256Mi"
+                          memory: "512Mi"
                           cpu: "250m"
                       limits:
-                          memory: "512Mi"
-                          cpu: "400m"
+                          memory: "1Gi"
+                          cpu: "500m"
                   securityContext:
                       capabilities:
                           add:
