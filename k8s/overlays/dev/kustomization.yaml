@@ -6,11 +6,6 @@ resources:
 
 namespace: marketplace-bot-dev
 
-labels:
-    - pairs:
-          environment: dev
-          tier: development
-
 images:
     - name: ghcr.io/vshulcz/marketplace_price_tracker
       newTag: sha-c9ebb22
