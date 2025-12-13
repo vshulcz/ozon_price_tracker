@@ -3,17 +3,17 @@ kind: Deployment
 metadata:
     name: marketplace-bot
     labels:
-        app: marketplace-bot
+        app: marketplace-price-tracker
 spec:
     replicas: 1
     revisionHistoryLimit: 2
     selector:
         matchLabels:
-            app: marketplace-bot
+            app: marketplace-price-tracker
     template:
         metadata:
             labels:
-                app: marketplace-bot
+                app: marketplace-price-tracker
         spec:
             initContainers:
                 - name: wait-for-postgres

@@ -3,14 +3,14 @@ kind: Service
 metadata:
   name: marketplace-bot
   labels:
-    app: marketplace-bot
+    app: marketplace-price-tracker
   annotations:
     prometheus.io/scrape: "true"
     prometheus.io/path: /metrics
     prometheus.io/port: "8000"
 spec:
   selector:
-    app: marketplace-bot
+    app: marketplace-price-tracker
   ports:
     - name: metrics
       port: 8000

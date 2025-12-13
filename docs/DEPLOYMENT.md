@@ -205,7 +205,7 @@ K3s Cluster
 ### Мониторинг и метрики
 
 - Эндпоинт `http://<pod-ip>:8000/metrics` (контролируется `METRICS_HOST`/`METRICS_PORT`) отдаёт Prometheus-совместимые метрики.
-- В `k8s/base/service.yaml` описан ClusterIP Service c аннотациями `prometheus.io/*`, поэтому Prometheus Operator автоматически подхватит таргет (или нужно подключить ServiceMonitor по тем же меткам `app: marketplace-bot`).
+- В `k8s/base/service.yaml` описан ClusterIP Service c аннотациями `prometheus.io/*`, поэтому Prometheus Operator автоматически подхватит таргет (или нужно подключить ServiceMonitor по тем же меткам `app: marketplace-price-tracker`).
 - Переменная `METRICS_ENABLED` управляет запуском HTTP-сервера (по умолчанию включён).
 
 #### Prometheus + Grafana через ArgoCD
@@ -318,7 +318,7 @@ kubectl port-forward -n marketplace-bot-prod svc/postgres 5433:5432
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 
 # Логи
-kubectl logs -f -l app=marketplace-bot -n marketplace-bot-prod
+kubectl logs -f -l app=marketplace-price-tracker -n marketplace-bot-prod
 
 # События
 kubectl get events -n marketplace-bot-prod --sort-by='.lastTimestamp'

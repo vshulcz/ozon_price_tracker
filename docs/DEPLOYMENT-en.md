@@ -205,7 +205,7 @@ Configured via ConfigMap (`k8s/base/configmap.yaml`):
 ### Monitoring & metrics
 
 - The bot exposes a Prometheus endpoint on `http://<pod-ip>:8000/metrics` (tunable through `METRICS_HOST`/`METRICS_PORT`).
-- `k8s/base/service.yaml` adds a ClusterIP Service with `prometheus.io/*` annotations, so Prometheus Operator or any standard Prometheus scrape config can discover it via the `app=marketplace-bot` label.
+- `k8s/base/service.yaml` adds a ClusterIP Service with `prometheus.io/*` annotations, so Prometheus Operator or any standard Prometheus scrape config can discover it via the `app=marketplace-price-tracker` label.
 - Use `METRICS_ENABLED=false` if you need to disable metrics in specific environments.
 
 #### Prometheus + Grafana via ArgoCD
@@ -317,7 +317,7 @@ View application status:
 kubectl port-forward svc/argocd-server -n argocd 8080:443
 
 # Logs
-kubectl logs -f -l app=marketplace-bot -n marketplace-bot-prod
+kubectl logs -f -l app=marketplace-price-tracker -n marketplace-bot-prod
 
 # Events
 kubectl get events -n marketplace-bot-prod --sort-by='.lastTimestamp'

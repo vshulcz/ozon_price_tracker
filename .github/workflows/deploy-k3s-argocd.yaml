@@ -178,7 +178,7 @@ jobs:
              kubectl get pods -n marketplace-bot-${ENVIRONMENT} -w
 
              # View logs
-             kubectl logs -f -l app=marketplace-bot -n marketplace-bot-${ENVIRONMENT}
+             kubectl logs -f -l app=marketplace-price-tracker -n marketplace-bot-${ENVIRONMENT}
 
              # Check ArgoCD status
              argocd app get marketplace-bot-${ENVIRONMENT}

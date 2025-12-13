@@ -121,7 +121,7 @@ jobs:
           2. **Verify Deployment**
              \`\`\`bash
              kubectl get pods -n marketplace-bot-dev
-             kubectl logs -f -l app=marketplace-bot -n marketplace-bot-dev
+             kubectl logs -f -l app=marketplace-price-tracker -n marketplace-bot-dev
              \`\`\`
 
           3. **Rollback if Needed**
