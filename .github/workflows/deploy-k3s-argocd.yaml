@@ -1,224 +1,226 @@
 name: Deploy to K3s via ArgoCD
 
 on:
-  push:
-    branches:
-      - main
-  workflow_dispatch:
-    inputs:
-      environment:
-        description: 'Environment to deploy'
-        required: true
-        type: choice
-        options:
-          - production
-          - dev
-      image_tag:
-        description: 'Image tag (optional, default: latest commit SHA)'
-        required: false
-        type: string
+    push:
+        branches:
+            - main
+    workflow_dispatch:
+        inputs:
+            environment:
+                description: "Environment to deploy"
+                required: true
+                type: choice
+                options:
+                    - production
+                    - dev
+            image_tag:
+                description: "Image tag (optional, default: latest commit SHA)"
+                required: false
+                type: string
 
 jobs:
-  wait-for-ci:
-    name: Wait for CI
-    runs-on: ubuntu-latest
-    steps:
-      - name: Wait for CI workflow to complete
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const sha = context.sha;
-            const maxAttempts = 60;
-            const waitTime = 20000;
+    wait-for-ci:
+        name: Wait for CI
+        runs-on: ubuntu-latest
+        steps:
+            - name: Wait for CI workflow to complete
+              uses: actions/github-script@v7
+              with:
+                  script: |
+                      const sha = context.sha;
+                      const maxAttempts = 60;
+                      const waitTime = 20000;
 
-            console.log(`Waiting for CI workflow to complete for SHA: ${sha}`);
+                      console.log(`Waiting for CI workflow to complete for SHA: ${sha}`);
 
-            for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-              console.log(`\nAttempt ${attempt}/${maxAttempts}...`);
+                      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+                        console.log(`\nAttempt ${attempt}/${maxAttempts}...`);
 
-              // Get all check runs for this commit
-              const { data: checkRuns } = await github.rest.checks.listForRef({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                ref: sha
-              });
+                        // Get all check runs for this commit
+                        const { data: checkRuns } = await github.rest.checks.listForRef({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          ref: sha
+                        });
 
-              console.log(`Found ${checkRuns.check_runs.length} check runs`);
+                        console.log(`Found ${checkRuns.check_runs.length} check runs`);
 
-              // Find the docker check
-              const dockerCheck = checkRuns.check_runs.find(
-                check => check.name === 'docker' || check.name === 'CI / docker'
-              );
+                        // Find the docker check
+                        const dockerCheck = checkRuns.check_runs.find(
+                          check => check.name === 'docker' || check.name === 'CI / docker'
+                        );
 
-              if (!dockerCheck) {
-                console.log('❌ Docker check not found yet, waiting...');
-                await new Promise(resolve => setTimeout(resolve, waitTime));
-                continue;
-              }
+                        if (!dockerCheck) {
+                          console.log('❌ Docker check not found yet, waiting...');
+                          await new Promise(resolve => setTimeout(resolve, waitTime));
+                          continue;
+                        }
 
-              console.log(`Docker check status: ${dockerCheck.status}, conclusion: ${dockerCheck.conclusion}`);
+                        console.log(`Docker check status: ${dockerCheck.status}, conclusion: ${dockerCheck.conclusion}`);
 
-              if (dockerCheck.status === 'completed') {
-                if (dockerCheck.conclusion === 'success') {
-                  console.log('✅ CI workflow completed successfully!');
-                  return;
-                } else {
-                  throw new Error(`❌ CI workflow failed with conclusion: ${dockerCheck.conclusion}`);
-                }
-              }
+                        if (dockerCheck.status === 'completed') {
+                          if (dockerCheck.conclusion === 'success') {
+                            console.log('✅ CI workflow completed successfully!');
+                            return;
+                          } else {
+                            throw new Error(`❌ CI workflow failed with conclusion: ${dockerCheck.conclusion}`);
+                          }
+                        }
 
-              console.log('CI still running, waiting...');
-              await new Promise(resolve => setTimeout(resolve, waitTime));
-            }
+                        console.log('CI still running, waiting...');
+                        await new Promise(resolve => setTimeout(resolve, waitTime));
+                      }
 
-            throw new Error('❌ Timeout waiting for CI workflow to complete');
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+                      throw new Error('❌ Timeout waiting for CI workflow to complete');
+                  github-token: ${{ secrets.GITHUB_TOKEN }}
 
-  update-gitops:
-    name: Update GitOps Manifests
-    runs-on: ubuntu-latest
-    needs: wait-for-ci
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
-    environment:
-      name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'production' }}
-      url: https://github.com/${{ github.repository }}/deployments
-    permissions:
-      contents: write
+    update-gitops:
+        name: Update GitOps Manifests
+        runs-on: ubuntu-latest
+        needs: wait-for-ci
+        if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+        environment:
+            name: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.environment || 'production' }}
+            url: https://github.com/${{ github.repository }}/deployments
+        permissions:
+            contents: write
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v5
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v5
+              with:
+                  token: ${{ secrets.GITHUB_TOKEN }}
+                  fetch-depth: 0
 
-      - name: Setup Kustomize
-        uses: imranismail/setup-kustomize@v2
+            - name: Setup Kustomize
+              uses: imranismail/setup-kustomize@v2
+              with:
+                  kustomize-version: "5.5.0"
 
-      - name: Determine environment
-        id: env
-        run: |
-          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
-          else
-            echo "environment=production" >> $GITHUB_OUTPUT
-          fi
+            - name: Determine environment
+              id: env
+              run: |
+                  if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+                    echo "environment=${{ inputs.environment }}" >> $GITHUB_OUTPUT
+                  else
+                    echo "environment=production" >> $GITHUB_OUTPUT
+                  fi
 
-      - name: Determine image tag
-        id: tag
-        run: |
-          IMAGE_INPUT="${{ inputs.image_tag }}"
-          if [ -n "$IMAGE_INPUT" ]; then
-            echo "tag=$IMAGE_INPUT" >> $GITHUB_OUTPUT
-            echo "✅ Using provided tag: $IMAGE_INPUT"
-          else
-            SHORT_SHA=$(git rev-parse --short HEAD)
-            echo "tag=sha-${SHORT_SHA}" >> $GITHUB_OUTPUT
-            echo "✅ Using commit-based tag: sha-${SHORT_SHA}"
-          fi
+            - name: Determine image tag
+              id: tag
+              run: |
+                  IMAGE_INPUT="${{ inputs.image_tag }}"
+                  if [ -n "$IMAGE_INPUT" ]; then
+                    echo "tag=$IMAGE_INPUT" >> $GITHUB_OUTPUT
+                    echo "✅ Using provided tag: $IMAGE_INPUT"
+                  else
+                    SHORT_SHA=$(git rev-parse --short HEAD)
+                    echo "tag=sha-${SHORT_SHA}" >> $GITHUB_OUTPUT
+                    echo "✅ Using commit-based tag: sha-${SHORT_SHA}"
+                  fi
 
-      - name: Update kustomization.yaml
-        working-directory: k8s/overlays/${{ steps.env.outputs.environment }}
-        env:
-          IMAGE_TAG: ${{ steps.tag.outputs.tag }}
-        run: |
-          set -euo pipefail
-          kustomize edit set image ghcr.io/vshulcz/marketplace_price_tracker=ghcr.io/vshulcz/marketplace_price_tracker:${IMAGE_TAG}
-          echo "✅ Updated image to ${IMAGE_TAG}"
-          cat kustomization.yaml
+            - name: Update kustomization.yaml
+              working-directory: k8s/overlays/${{ steps.env.outputs.environment }}
+              env:
+                  IMAGE_TAG: ${{ steps.tag.outputs.tag }}
+              run: |
+                  set -euo pipefail
+                  kustomize edit set image ghcr.io/vshulcz/marketplace_price_tracker=ghcr.io/vshulcz/marketplace_price_tracker:${IMAGE_TAG}
+                  echo "✅ Updated image to ${IMAGE_TAG}"
+                  cat kustomization.yaml
 
-      - name: Commit and push changes
-        env:
-          ENVIRONMENT: ${{ steps.env.outputs.environment }}
-          IMAGE_TAG: ${{ steps.tag.outputs.tag }}
-        run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+            - name: Commit and push changes
+              env:
+                  ENVIRONMENT: ${{ steps.env.outputs.environment }}
+                  IMAGE_TAG: ${{ steps.tag.outputs.tag }}
+              run: |
+                  git config --global user.name "github-actions[bot]"
+                  git config --global user.email "github-actions[bot]@users.noreply.github.com"
 
-          git add k8s/overlays/${ENVIRONMENT}/kustomization.yaml
+                  git add k8s/overlays/${ENVIRONMENT}/kustomization.yaml
 
-          if git diff --staged --quiet; then
-            echo "No changes to commit"
-            exit 0
-          fi
+                  if git diff --staged --quiet; then
+                    echo "No changes to commit"
+                    exit 0
+                  fi
 
-          git commit -m "chore(k8s): update ${ENVIRONMENT} image to ${IMAGE_TAG}" \
-            -m "" \
-            -m "Auto-updated by GitHub Actions" \
-            -m "Workflow: ${{ github.workflow }}" \
-            -m "Run: ${{ github.run_id }}"
+                  git commit -m "chore(k8s): update ${ENVIRONMENT} image to ${IMAGE_TAG}" \
+                    -m "" \
+                    -m "Auto-updated by GitHub Actions" \
+                    -m "Workflow: ${{ github.workflow }}" \
+                    -m "Run: ${{ github.run_id }}"
 
-          git push
+                  git push
 
-      - name: Summary
-        env:
-          ENVIRONMENT: ${{ steps.env.outputs.environment }}
-          IMAGE_TAG: ${{ steps.tag.outputs.tag }}
-        run: |
-          cat >> $GITHUB_STEP_SUMMARY <<EOF
-          ## ✅ ${ENVIRONMENT^} Deployment Initiated
+            - name: Summary
+              env:
+                  ENVIRONMENT: ${{ steps.env.outputs.environment }}
+                  IMAGE_TAG: ${{ steps.tag.outputs.tag }}
+              run: |
+                  cat >> $GITHUB_STEP_SUMMARY <<EOF
+                  ## ✅ ${ENVIRONMENT^} Deployment Initiated
 
-          **Environment:** \`${ENVIRONMENT}\`
-          **Image Tag:** \`${IMAGE_TAG}\`
-          **Image:** \`ghcr.io/${{ github.repository }}:${IMAGE_TAG}\`
-          **Deployed by:** @${{ github.actor }}
+                  **Environment:** \`${ENVIRONMENT}\`
+                  **Image Tag:** \`${IMAGE_TAG}\`
+                  **Image:** \`ghcr.io/${{ github.repository }}:${IMAGE_TAG}\`
+                  **Deployed by:** @${{ github.actor }}
 
-          ### Next Steps
+                  ### Next Steps
 
-          1. **Monitor ArgoCD Sync** (~1-2 minutes)
-             - ArgoCD will automatically detect Git changes
-             - Check application health in ArgoCD UI
+                  1. **Monitor ArgoCD Sync** (~1-2 minutes)
+                     - ArgoCD will automatically detect Git changes
+                     - Check application health in ArgoCD UI
 
-          2. **Verify Deployment**
-             \`\`\`bash
-             # Check pod status
-             kubectl get pods -n marketplace-bot-${ENVIRONMENT}
+                  2. **Verify Deployment**
+                     \`\`\`bash
+                     # Check pod status
+                     kubectl get pods -n marketplace-bot-${ENVIRONMENT}
 
-             # Watch pod restart
-             kubectl get pods -n marketplace-bot-${ENVIRONMENT} -w
+                     # Watch pod restart
+                     kubectl get pods -n marketplace-bot-${ENVIRONMENT} -w
 
-             # View logs
-             kubectl logs -f -l app=marketplace-price-tracker -n marketplace-bot-${ENVIRONMENT}
+                     # View logs
+                     kubectl logs -f -l app=marketplace-price-tracker -n marketplace-bot-${ENVIRONMENT}
 
-             # Check ArgoCD status
-             argocd app get marketplace-bot-${ENVIRONMENT}
-             \`\`\`
+                     # Check ArgoCD status
+                     argocd app get marketplace-bot-${ENVIRONMENT}
+                     \`\`\`
 
-          3. **Rollback (if needed)**
-             \`\`\`bash
-             # Via ArgoCD UI: History → Select version → Rollback
-             # Via CLI:
-             argocd app rollback marketplace-bot-${ENVIRONMENT}
+                  3. **Rollback (if needed)**
+                     \`\`\`bash
+                     # Via ArgoCD UI: History → Select version → Rollback
+                     # Via CLI:
+                     argocd app rollback marketplace-bot-${ENVIRONMENT}
 
-             # Or re-run this workflow with previous image tag
-             \`\`\`
+                     # Or re-run this workflow with previous image tag
+                     \`\`\`
 
-          ### Useful Commands
+                  ### Useful Commands
 
-          \`\`\`bash
-          # Force ArgoCD hard refresh
-          argocd app sync marketplace-bot-${ENVIRONMENT} --force
+                  \`\`\`bash
+                  # Force ArgoCD hard refresh
+                  argocd app sync marketplace-bot-${ENVIRONMENT} --force
 
-          # Check deployment status
-          kubectl rollout status deployment/marketplace-bot -n marketplace-bot-${ENVIRONMENT}
+                  # Check deployment status
+                  kubectl rollout status deployment/marketplace-bot -n marketplace-bot-${ENVIRONMENT}
 
-          # Get deployment history
-          kubectl rollout history deployment/marketplace-bot -n marketplace-bot-${ENVIRONMENT}
-          \`\`\`
+                  # Get deployment history
+                  kubectl rollout history deployment/marketplace-bot -n marketplace-bot-${ENVIRONMENT}
+                  \`\`\`
 
-          ---
+                  ---
 
-          **Commit:** ${{ github.sha }}
-          **Workflow:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-          EOF
+                  **Commit:** ${{ github.sha }}
+                  **Workflow:** ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+                  EOF
 
-  notify-argocd:
-    name: Trigger ArgoCD Sync
-    runs-on: ubuntu-latest
-    needs: update-gitops
-    if: false
+    notify-argocd:
+        name: Trigger ArgoCD Sync
+        runs-on: ubuntu-latest
+        needs: update-gitops
+        if: false
 
-    steps:
-      - name: Trigger ArgoCD sync
-        run: |
-          echo "ArgoCD will sync automatically (automated sync policy enabled)"
+        steps:
+            - name: Trigger ArgoCD sync
+              run: |
+                  echo "ArgoCD will sync automatically (automated sync policy enabled)"

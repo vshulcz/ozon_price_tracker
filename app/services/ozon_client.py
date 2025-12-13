@@ -96,6 +96,7 @@ class _Browser:
                 "headless": True,
                 "args": args,
                 "ignore_default_args": ["--enable-automation"],
+                "timeout": 300000,
             }
             if prof["channel"]:
                 try:
@@ -167,13 +168,17 @@ async def _route_blocker(route, request):
     return await route.continue_()
 
 
-async def _pass_ozon_challenge(ctx: BrowserContext, page: Page, timeout_ms=45000) -> bool:
+async def _pass_ozon_challenge(ctx: BrowserContext, page: Page, timeout_ms=60000) -> bool:
     logger.debug("Passing Ozon anti-bot challenge...")
-    await page.goto(
-        "https://www.ozon.ru/?abt_att=1&__rr=1",
-        wait_until="domcontentloaded",
-        timeout=timeout_ms,
-    )
+    try:
+        await page.goto(
+            "https://www.ozon.ru/?abt_att=1&__rr=1",
+            wait_until="domcontentloaded",
+            timeout=timeout_ms,
+        )
+    except Exception as e:
+        logger.warning("Failed to navigate to Ozon challenge page: %s", e)
+        return False
 
     try:
         async with page.expect_response(
@@ -385,7 +390,7 @@ async def fetch_product_info_via_api(url: str) -> OzonProductInfo:
     with contextlib.suppress(Exception):
         page = await ctx.new_page()
         try:
-            await _pass_ozon_challenge(ctx, page, timeout_ms=20000)
+            await _pass_ozon_challenge(ctx, page, timeout_ms=30000)
         finally:
             await page.close()
 

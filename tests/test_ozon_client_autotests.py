@@ -166,6 +166,9 @@ async def test_browser_ensure_started_fallback_and_shutdown(monkeypatch):
     p = await oc._Browser.page()
     assert isinstance(p, FakePage)
 
+    launch_calls = fake_chromium.launch_calls
+    assert any("timeout" in call and call["timeout"] == 300000 for call in launch_calls)
+
     await oc._Browser.shutdown()
     assert fake_browser.closed
     assert fake_pl.stopped
@@ -223,6 +226,19 @@ async def test_pass_ozon_challenge_ok():
     ok = await oc._pass_ozon_challenge(cast(Any, ctx), cast(Any, page), timeout_ms=10_000)
     assert ok is True
     assert page.goto_calls, "ожидали заход на abt-страницу"
+
+
+@pytest.mark.asyncio
+async def test_pass_ozon_challenge_navigation_error():
+    ctx = FakeContext()
+
+    class FailingPage(FakePage):
+        async def goto(self, url, wait_until=None, timeout=None):
+            raise Exception("Navigation failed")
+
+    page = FailingPage(ctx)
+    ok = await oc._pass_ozon_challenge(cast(Any, ctx), cast(Any, page), timeout_ms=10_000)
+    assert ok is False
 
 
 @pytest.mark.asyncio
