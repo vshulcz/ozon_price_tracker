@@ -27,3 +27,4 @@ k8s/**/*-secrets.yaml
 coverage.xml
 pytest.xml
 file.db
+scripts/

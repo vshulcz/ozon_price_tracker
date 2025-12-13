@@ -74,8 +74,6 @@ _runner: web.AppRunner | None = None
 
 async def _metrics_handler(_: web.Request) -> web.Response:
     payload = generate_latest()
-    # aiohttp 3.10+ requires charset to be passed separately, not in content_type
-    # CONTENT_TYPE_LATEST = "text/plain; version=0.0.4; charset=utf-8"
     return web.Response(
         body=payload,
         content_type="text/plain; version=0.0.4",
@@ -89,9 +87,9 @@ async def start_metrics_server(host: str, port: int) -> None:
         return
 
     app = web.Application()
-    app.router.add_get("/metrics", _metrics_handler)
+    _ = app.router.add_get("/metrics", _metrics_handler)
 
-    runner = web.AppRunner(app)
+    runner = web.AppRunner(app, access_log=None)
     await runner.setup()
     site = web.TCPSite(runner, host=host, port=port)
     await site.start()
