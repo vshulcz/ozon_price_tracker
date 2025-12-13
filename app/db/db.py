@@ -18,7 +18,7 @@ async_session: async_sessionmaker[AsyncSession] | None = None
 
 def init_engine_and_schema(dsn: str) -> tuple[AsyncEngine, async_sessionmaker[AsyncSession]]:
     safe_dsn = dsn.split("@")[-1] if "@" in dsn else dsn
-    logger.info("🗄️  Initializing database connection | DSN: %s", safe_dsn)
+    logger.info("Initializing database connection | DSN: %s", safe_dsn)
 
     try:
         async_engine = create_async_engine(

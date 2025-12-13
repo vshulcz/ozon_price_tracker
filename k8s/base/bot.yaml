@@ -93,9 +93,21 @@ spec:
                         value: "postgresql+psycopg://$(POSTGRES_USER):$(POSTGRES_PASSWORD)@postgres:5432/$(POSTGRES_DB)"
                   resources:
                       requests:
-                          memory: "128Mi"
-                          cpu: "100m"
-                      limits:
                           memory: "256Mi"
                           cpu: "250m"
+                      limits:
+                          memory: "512Mi"
+                          cpu: "400m"
+                  securityContext:
+                      capabilities:
+                          add:
+                              - SYS_ADMIN
+                  volumeMounts:
+                      - name: dshm
+                        mountPath: /dev/shm
+            volumes:
+                - name: dshm
+                  emptyDir:
+                      medium: Memory
+                      sizeLimit: 256Mi
             restartPolicy: Always
