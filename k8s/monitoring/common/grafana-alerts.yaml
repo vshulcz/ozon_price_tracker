@@ -9,7 +9,7 @@ spec:
         matchLabels:
             app.kubernetes.io/name: marketplace-grafana
     folder: Marketplace Alerts
-    intervalSeconds: 60
+    interval: 60s
     rules:
         - uid: ozon-price-scraper-failures
           title: Ozon price scraper failures
