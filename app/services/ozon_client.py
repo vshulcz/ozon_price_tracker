@@ -415,6 +415,13 @@ async def fetch_product_info_via_api(url: str) -> OzonProductInfo:
         logger.error("Browser context unavailable for URL: %s", url[:100])
         raise OzonBlockedError("ozon_browser_unavailable")
 
+    cookie_cache = _cookie_storage_path()
+    if not cookie_cache.exists():
+        logger.info("No cached Ozon cookies found, running anti-bot challenge once")
+        warmed = await _warmup_challenge(ctx)
+        if not warmed:
+            logger.warning("Anti-bot warmup failed, continuing without cached cookies")
+
     data = await _fetch_with_composer(ctx, normalized_url)
     if not data:
         logger.info("Composer empty for %s, forcing challenge refresh", url[:80])

@@ -14,3 +14,4 @@ resources:
     - grafana-dashboard-configmap.yaml
     - grafana-datasource.yaml
     - grafana-dashboard.yaml
+    - grafana-alerts.yaml

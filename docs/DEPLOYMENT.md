@@ -56,6 +56,42 @@ export KUBECONFIG=~/.kube/config
 kubectl get nodes
 ```
 
+#### Локальный kubectl‑контекст
+
+Чтобы управлять кластером локально, скопируйте kubeconfig с сервера K3s:
+
+```bash
+# локально
+scp root@<server>:/etc/rancher/k3s/k3s.yaml ~/.kube/k3s-marketplace.yaml
+```
+
+В файле по умолчанию сервер прописан как `https://127.0.0.1:6443`, поэтому замените адрес на публичный IP/домен узла:
+
+```bash
+SERVER_IP=<your_public_ip>
+sed -i '' "s/127.0.0.1/${SERVER_IP}/" ~/.kube/k3s-marketplace.yaml
+```
+
+Объедините новый kubeconfig с локальным:
+
+```bash
+KUBECONFIG=$HOME/.kube/config:$HOME/.kube/k3s-marketplace.yaml \
+  kubectl config view --flatten > $HOME/.kube/config-merged
+mv $HOME/.kube/config-merged $HOME/.kube/config
+```
+
+Переименуйте контекст, чтобы он был легко узнаваем:
+
+```bash
+kubectl config rename-context default k3s-marketplace
+```
+
+Теперь можно переключаться на кластер из любой директории:
+
+```bash
+kubectl --context k3s-marketplace get pods -A
+```
+
 ### 2. Установка ArgoCD
 
 Установить hardened-манифест ArgoCD (патчи задают requests/limits для repo-server, ограничивают параллелизм и смягчают probes, чтобы ArgoCD устойчиво работал на слабых узлах):
@@ -201,6 +237,7 @@ K3s Cluster
 - `METRICS_ENABLED`: Включить/отключить Prometheus-эндпоинт (по умолчанию: true)
 - `METRICS_HOST`: Хост для HTTP-сервера метрик (по умолчанию: 0.0.0.0)
 - `METRICS_PORT`: Порт эндпоинта (по умолчанию: 8000)
+- `OZON_COOKIE_PATH`: Путь к файлу с антибот-куками Ozon (по умолчанию `.ozon_cookies.json` в рабочей директории контейнера)
 
 ### Мониторинг и метрики
 
@@ -262,6 +299,23 @@ helm upgrade --install grafana-operator grafana/grafana-operator \
 - Prod: `k8s/monitoring/production/patches/grafana-auth.yaml` (admin/admin)
 
 Отредактируйте соответствующий файл перед деплоем (или переопределите patch через Kustomize) и задокументируйте реальные значения в менеджере секретов. После изменения пароля сделайте `git commit` и синхронизируйте ArgoCD - Grafana перезапустится с новыми кредами.
+
+##### Алерты Grafana
+
+`k8s/monitoring/common/grafana-alerts.yaml` разворачивает папку “Marketplace Alerts” с несколькими правилами и ссылками на соответствующие инструкции в этом документе:
+
+- `Ozon price scraper failures` и `Wildberries price scraper failures` следят за `marketplace_bot_requests_total` и срабатывают, если за 5 минут накопилось ≥3 попыток с результатом `!= success` (признак блока/ошибки API).
+- `Scheduler stalled` сообщает, что за 10 минут не появилось ни одной успешной синхронизации.
+- `Price refresh errors` контролирует `marketplace_bot_price_check_errors_total` и сигнализирует при ≥3 ошибках для товаров за 15 минут.
+- `Refresh queue stuck` использует `marketplace_bot_products_refresh_inflight` и срабатывает, если очередь держится выше 30 записей более 10 минут.
+- `Scraper latency p95 high` реагирует, когда p95 `marketplace_bot_request_duration_seconds_bucket` превышает 20 с на протяжении 5 минут.
+- `Scheduler error rate` ловит рост `marketplace_bot_scheduler_runs_total{status!="success"}`.
+
+После синка:
+
+1. Настройте контакт (Grafana → Alerting → Contact points) — e‑mail, Slack, Telegram и т.д.
+2. В Alerting → Notification policies убедитесь, что события из папки “Marketplace Alerts” маршрутизируются на созданный канал.
+3. При необходимости меняйте пороги/окна прямо в YAML и пересинхронизуйте ArgoCD.
 
 ## Управление базой данных
 
@@ -358,6 +412,83 @@ kubectl exec -n marketplace-bot-prod postgres-pod -- psql -U admin -l
 ```bash
 docker manifest inspect ghcr.io/vshulcz/marketplace_price_tracker:latest
 ```
+
+### Ошибки обновления цен
+
+1. Посмотрите логи планировщика, чтобы найти product_id и стек:
+
+```bash
+kubectl logs -n marketplace-bot-prod deploy/marketplace-bot | grep -E "price_check|Failed to refresh product"
+```
+
+2. В Grafana откройте панель «Price refresh errors (30m)», чтобы понять, одиночная ли это ошибка или массовая.
+3. Если конкретный товар недоступен/сломался, временно отключите его:
+
+```bash
+kubectl exec -n marketplace-bot-prod deploy/postgres -- \
+  psql -U admin -d price_tracker_bot \
+  -c "update products set is_active=false where id=<problem-id>;"
+```
+
+4. HTTP-проблемы удобнее воспроизводить напрямую в поде бота (`PYTHONPATH=. uv run python test.py --url <ссылка> --log-level DEBUG`), так видны капчи и ответы сайта.
+
+### Очередь обновления зависла
+
+1. Если алерт `Refresh queue stuck` и панель «Inflight products» показывают значения >30, убедитесь, что планировщик реально двигается:
+
+```bash
+kubectl logs -n marketplace-bot-prod deploy/marketplace-bot | grep price_check_started
+```
+
+2. Проверьте, нет ли одновременно алертов по блокировкам/медленным запросам — чаще всего очередь растёт именно из‑за этого.
+3. Временно увеличьте число реплик, чтобы разгребсти накопившиеся товары:
+
+```bash
+kubectl scale deployment marketplace-bot -n marketplace-bot-prod --replicas=2
+```
+
+4. После нормализации верните прежнее значение и оцените, не стоит ли постоянно держать больше ресурсов или дробить расписание — метрика inflight пригодится и для будущего автоскейлинга.
+
+### Медленные запросы к маркетплейсам
+
+1. Посмотрите панель «Request latency p95» и определите, какой marketplace вышел за порог.
+2. В логах Pods ищите `timeout`, `challenge`, `chromium`:
+
+```bash
+kubectl logs -n marketplace-bot-prod deploy/marketplace-bot | grep -E "timeout|challenge|chromium"
+```
+
+3. Выполните простой `curl` из пода для проверки исходящего трафика:
+
+```bash
+kubectl exec -n marketplace-bot-prod deploy/marketplace-bot -- \
+  curl -I https://www.ozon.ru/product/000000/
+```
+
+4. Для Ozon дополнительно сбросьте cookie (см. ниже) и перезапустите деплоймент; для Wildberries ищите изменения протокола/API.
+
+### Ошибки планировщика
+
+1. На панели `scheduler_runs_total` видно, сколько запусков завершилось статусом `failed`.
+2. Снимите свежий лог, чтобы получить стек:
+
+```bash
+kubectl logs -n marketplace-bot-prod deploy/marketplace-bot | grep -A5 -B1 "scheduler"
+```
+
+3. Проверьте доступность PostgreSQL (`kubectl logs -n marketplace-bot-prod -l app=postgres`) и перезапустите `deployment/marketplace-bot`, если планировщик упал.
+4. После устранения причины сделайте `kubectl rollout restart deployment marketplace-bot -n marketplace-bot-prod`, чтобы тут же запустить новый цикл.
+
+### Сброс Ozon cookie
+
+Антибот‑челлендж Ozon проходится однократно, а полученные cookie сохраняются в файл `.ozon_cookies.json` (или путь из переменной `OZON_COOKIE_PATH`). В контейнере файл лежит в рабочем каталоге `/app`, поэтому его можно удалить, если сайт начал отвечать капчей и нужно принудительно пройти проверку заново:
+
+```bash
+kubectl exec -n marketplace-bot-prod deploy/marketplace-bot -- \
+  rm -f /app/.ozon_cookies.json
+```
+
+В следующем запросе бот автоматически повторно пройдёт челендж и обновит файл. Если хотите хранить cookie вне контейнера (например, на PVC), задайте собственный путь через `OZON_COOKIE_PATH` в `k8s/base/configmap.yaml` и примонтируйте volume с нужной политикой сохранности.
 
 Проверить завершение CI:
 

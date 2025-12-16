@@ -80,6 +80,7 @@ class FakeContext:
         self.request = FakeRequestClient(FakeResponseOK({"ok": True}))
         self.created_pages = []
         self.closed = False
+        self.storage_state_paths = []
 
     async def new_page(self):
         p = FakePage(self)
@@ -98,6 +99,9 @@ class FakeContext:
 
     async def close(self):
         self.closed = True
+
+    async def storage_state(self, path=None):
+        self.storage_state_paths.append(path)
 
 
 class FakeBrowser:
@@ -343,7 +347,7 @@ def test_pick_prices_widget_and_fallback_ruble():
 
 
 @pytest.mark.asyncio
-async def test_fetch_product_info_via_api_happy(monkeypatch):
+async def test_fetch_product_info_via_api_happy(monkeypatch, tmp_path):
     fake_ctx = FakeContext()
     payload = {
         "widgetStates": make_widget_states(
@@ -361,6 +365,11 @@ async def test_fetch_product_info_via_api_happy(monkeypatch):
 
     monkeypatch.setattr(oc._Browser, "ensure_started", fake_ensure_started)
     monkeypatch.setattr(oc._Browser, "_ctx", fake_ctx, raising=False)
+
+    cookie_file = tmp_path / "cookies.json"
+    cookie_file.write_text("{}")
+
+    monkeypatch.setattr(oc, "_cookie_storage_path", lambda: cookie_file)
 
     async def fail_warmup(ctx):
         raise AssertionError("warmup should not run when composer succeeds")
@@ -380,7 +389,7 @@ async def test_fetch_product_info_via_api_happy(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_fetch_product_info_via_api_ozon_empty(monkeypatch):
+async def test_fetch_product_info_via_api_ozon_empty(monkeypatch, tmp_path):
     fake_ctx = FakeContext()
 
     async def fake_ensure_started():
@@ -388,6 +397,10 @@ async def test_fetch_product_info_via_api_ozon_empty(monkeypatch):
 
     monkeypatch.setattr(oc._Browser, "ensure_started", fake_ensure_started)
     monkeypatch.setattr(oc._Browser, "_ctx", fake_ctx, raising=False)
+
+    cookie_file = tmp_path / "cookies.json"
+    cookie_file.write_text("{}")
+    monkeypatch.setattr(oc, "_cookie_storage_path", lambda: cookie_file)
 
     warm_calls = {"n": 0}
 

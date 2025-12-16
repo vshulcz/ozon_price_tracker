@@ -1,0 +1,468 @@
+apiVersion: grafana.integreatly.org/v1beta1
+kind: GrafanaRule
+metadata:
+    name: marketplace-grafana-alerts
+    labels:
+        app.kubernetes.io/name: marketplace-grafana
+spec:
+    instanceSelector:
+        matchLabels:
+            app.kubernetes.io/name: marketplace-grafana
+    folder: Marketplace Alerts
+    intervalSeconds: 60
+    rules:
+        - uid: ozon-price-scraper-failures
+          title: Ozon price scraper failures
+          condition: C
+          noDataState: Alerting
+          execErrState: Alerting
+          for: 5m
+          annotations:
+              summary: Ozon scraper keeps failing for 5 minutes
+              runbook_url: https://github.com/vshulcz/marketplace-price-tracker/blob/main/docs/DEPLOYMENT-en.md#resetting-ozon-cookies
+          data:
+              - refId: A
+                relativeTimeRange:
+                    from: 300
+                    to: 0
+                datasourceUid: marketplace-prometheus
+                model:
+                    datasource:
+                        type: prometheus
+                        uid: marketplace-prometheus
+                    expr: sum(increase(marketplace_bot_requests_total{marketplace="ozon",result!="success"}[5m]))
+                    format: time_series
+                    instant: false
+                    intervalMs: 15000
+                    maxDataPoints: 43200
+                    range: true
+                    refId: A
+              - refId: B
+                relativeTimeRange:
+                    from: 300
+                    to: 0
+                datasourceUid: __expr__
+                model:
+                    datasource:
+                        type: __expr__
+                        uid: __expr__
+                    expression: A
+                    type: reduce
+                    reducer: last
+                    settings:
+                        mode: dropNN
+                    refId: B
+              - refId: C
+                relativeTimeRange:
+                    from: 300
+                    to: 0
+                datasourceUid: __expr__
+                model:
+                    conditions:
+                        - evaluator:
+                              params:
+                                  - 3
+                              type: gt
+                          operator:
+                              type: and
+                          query:
+                              params: []
+                          reducer:
+                              params: []
+                              type: last
+                          type: query
+                    datasource:
+                        type: __expr__
+                        uid: __expr__
+                    expression: B
+                    refId: C
+        - uid: wb-price-scraper-failures
+          title: Wildberries price scraper failures
+          condition: C
+          noDataState: Alerting
+          execErrState: Alerting
+          for: 5m
+          annotations:
+              summary: Wildberries scraper keeps failing for 5 minutes
+              runbook_url: https://github.com/vshulcz/marketplace-price-tracker/blob/main/docs/DEPLOYMENT-en.md#resetting-ozon-cookies
+          data:
+              - refId: A
+                relativeTimeRange:
+                    from: 300
+                    to: 0
+                datasourceUid: marketplace-prometheus
+                model:
+                    datasource:
+                        type: prometheus
+                        uid: marketplace-prometheus
+                    expr: sum(increase(marketplace_bot_requests_total{marketplace="wildberries",result!="success"}[5m]))
+                    format: time_series
+                    instant: false
+                    intervalMs: 15000
+                    maxDataPoints: 43200
+                    range: true
+                    refId: A
+              - refId: B
+                relativeTimeRange:
+                    from: 300
+                    to: 0
+                datasourceUid: __expr__
+                model:
+                    datasource:
+                        type: __expr__
+                        uid: __expr__
+                    expression: A
+                    type: reduce
+                    reducer: last
+                    settings:
+                        mode: dropNN
+                    refId: B
+              - refId: C
+                relativeTimeRange:
+                    from: 300
+                    to: 0
+                datasourceUid: __expr__
+                model:
+                    conditions:
+                        - evaluator:
+                              params:
+                                  - 3
+                              type: gt
+                          operator:
+                              type: and
+                          query:
+                              params: []
+                          reducer:
+                              params: []
+                              type: last
+                          type: query
+                    datasource:
+                        type: __expr__
+                        uid: __expr__
+                    expression: B
+                    refId: C
+        - uid: scheduler-stalled
+          title: Scheduler stalled
+          condition: C
+          noDataState: Alerting
+          execErrState: Alerting
+          for: 10m
+          annotations:
+              summary: Scheduler has not completed a run for 10 minutes
+              runbook_url: https://github.com/vshulcz/marketplace-price-tracker/blob/main/docs/DEPLOYMENT-en.md#resetting-ozon-cookies
+          data:
+              - refId: A
+                relativeTimeRange:
+                    from: 600
+                    to: 0
+                datasourceUid: marketplace-prometheus
+                model:
+                    datasource:
+                        type: prometheus
+                        uid: marketplace-prometheus
+                    expr: sum(increase(marketplace_bot_scheduler_runs_total{status="success"}[10m]))
+                    format: time_series
+                    instant: false
+                    intervalMs: 15000
+                    maxDataPoints: 43200
+                    range: true
+                    refId: A
+              - refId: B
+                relativeTimeRange:
+                    from: 600
+                    to: 0
+                datasourceUid: __expr__
+                model:
+                    datasource:
+                        type: __expr__
+                        uid: __expr__
+                    expression: A
+                    type: reduce
+                    reducer: last
+                    settings:
+                        mode: dropNN
+                    refId: B
+              - refId: C
+                relativeTimeRange:
+                    from: 600
+                    to: 0
+                datasourceUid: __expr__
+                model:
+                    conditions:
+                        - evaluator:
+                              params:
+                                  - 1
+                              type: lt
+                          operator:
+                              type: and
+                          query:
+                              params: []
+                          reducer:
+                              params: []
+                              type: last
+                          type: query
+                    datasource:
+                        type: __expr__
+                        uid: __expr__
+                    expression: B
+                    refId: C
+        - uid: price-refresh-errors
+          title: Price refresh errors
+          condition: C
+          noDataState: Alerting
+          execErrState: Alerting
+          for: 5m
+          annotations:
+              summary: Price refresh produced >=3 errors within 15 minutes
+              runbook_url: https://github.com/vshulcz/marketplace-price-tracker/blob/main/docs/DEPLOYMENT-en.md#price-refresh-errors
+          data:
+              - refId: A
+                relativeTimeRange:
+                    from: 900
+                    to: 0
+                datasourceUid: marketplace-prometheus
+                model:
+                    datasource:
+                        type: prometheus
+                        uid: marketplace-prometheus
+                    expr: increase(marketplace_bot_price_check_errors_total[15m])
+                    format: time_series
+                    instant: false
+                    intervalMs: 15000
+                    maxDataPoints: 43200
+                    range: true
+                    refId: A
+              - refId: B
+                relativeTimeRange:
+                    from: 900
+                    to: 0
+                datasourceUid: __expr__
+                model:
+                    datasource:
+                        type: __expr__
+                        uid: __expr__
+                    expression: A
+                    type: reduce
+                    reducer: last
+                    settings:
+                        mode: dropNN
+                    refId: B
+              - refId: C
+                relativeTimeRange:
+                    from: 900
+                    to: 0
+                datasourceUid: __expr__
+                model:
+                    conditions:
+                        - evaluator:
+                              params:
+                                  - 3
+                              type: gt
+                          operator:
+                              type: and
+                          query:
+                              params: []
+                          reducer:
+                              params: []
+                              type: last
+                          type: query
+                    datasource:
+                        type: __expr__
+                        uid: __expr__
+                    expression: B
+                    refId: C
+        - uid: refresh-queue-stuck
+          title: Refresh queue stuck
+          condition: C
+          noDataState: Alerting
+          execErrState: Alerting
+          for: 10m
+          annotations:
+              summary: Products refresh queue stays above 30 inflight items for 10 minutes
+              runbook_url: https://github.com/vshulcz/marketplace-price-tracker/blob/main/docs/DEPLOYMENT-en.md#refresh-queue-backlog
+          data:
+              - refId: A
+                relativeTimeRange:
+                    from: 600
+                    to: 0
+                datasourceUid: marketplace-prometheus
+                model:
+                    datasource:
+                        type: prometheus
+                        uid: marketplace-prometheus
+                    expr: marketplace_bot_products_refresh_inflight
+                    format: time_series
+                    instant: false
+                    intervalMs: 15000
+                    maxDataPoints: 43200
+                    range: true
+                    refId: A
+              - refId: B
+                relativeTimeRange:
+                    from: 600
+                    to: 0
+                datasourceUid: __expr__
+                model:
+                    datasource:
+                        type: __expr__
+                        uid: __expr__
+                    expression: A
+                    type: reduce
+                    reducer: last
+                    settings:
+                        mode: dropNN
+                    refId: B
+              - refId: C
+                relativeTimeRange:
+                    from: 600
+                    to: 0
+                datasourceUid: __expr__
+                model:
+                    conditions:
+                        - evaluator:
+                              params:
+                                  - 30
+                              type: gt
+                          operator:
+                              type: and
+                          query:
+                              params: []
+                          reducer:
+                              params: []
+                              type: last
+                          type: query
+                    datasource:
+                        type: __expr__
+                        uid: __expr__
+                    expression: B
+                    refId: C
+        - uid: scraper-latency-high
+          title: Scraper latency p95 high
+          condition: C
+          noDataState: Alerting
+          execErrState: Alerting
+          for: 5m
+          annotations:
+              summary: Marketplace scraper p95 latency exceeds 20s for 5 minutes
+              runbook_url: https://github.com/vshulcz/marketplace-price-tracker/blob/main/docs/DEPLOYMENT-en.md#slow-scraper-latency
+          data:
+              - refId: A
+                relativeTimeRange:
+                    from: 300
+                    to: 0
+                datasourceUid: marketplace-prometheus
+                model:
+                    datasource:
+                        type: prometheus
+                        uid: marketplace-prometheus
+                    expr: histogram_quantile(0.95, sum by (le, marketplace)(rate(marketplace_bot_request_duration_seconds_bucket[5m])))
+                    format: time_series
+                    instant: false
+                    intervalMs: 15000
+                    maxDataPoints: 43200
+                    range: true
+                    refId: A
+              - refId: B
+                relativeTimeRange:
+                    from: 300
+                    to: 0
+                datasourceUid: __expr__
+                model:
+                    datasource:
+                        type: __expr__
+                        uid: __expr__
+                    expression: A
+                    type: reduce
+                    reducer: last
+                    settings:
+                        mode: dropNN
+                    refId: B
+              - refId: C
+                relativeTimeRange:
+                    from: 300
+                    to: 0
+                datasourceUid: __expr__
+                model:
+                    conditions:
+                        - evaluator:
+                              params:
+                                  - 20
+                              type: gt
+                          operator:
+                              type: and
+                          query:
+                              params: []
+                          reducer:
+                              params: []
+                              type: last
+                          type: query
+                    datasource:
+                        type: __expr__
+                        uid: __expr__
+                    expression: B
+                    refId: C
+        - uid: scheduler-error-rate
+          title: Scheduler error rate
+          condition: C
+          noDataState: Alerting
+          execErrState: Alerting
+          for: 5m
+          annotations:
+              summary: Scheduler recorded non-success runs in the last 15 minutes
+              runbook_url: https://github.com/vshulcz/marketplace-price-tracker/blob/main/docs/DEPLOYMENT-en.md#scheduler-errors
+          data:
+              - refId: A
+                relativeTimeRange:
+                    from: 900
+                    to: 0
+                datasourceUid: marketplace-prometheus
+                model:
+                    datasource:
+                        type: prometheus
+                        uid: marketplace-prometheus
+                    expr: increase(marketplace_bot_scheduler_runs_total{status!="success"}[15m])
+                    format: time_series
+                    instant: false
+                    intervalMs: 15000
+                    maxDataPoints: 43200
+                    range: true
+                    refId: A
+              - refId: B
+                relativeTimeRange:
+                    from: 900
+                    to: 0
+                datasourceUid: __expr__
+                model:
+                    datasource:
+                        type: __expr__
+                        uid: __expr__
+                    expression: A
+                    type: reduce
+                    reducer: last
+                    settings:
+                        mode: dropNN
+                    refId: B
+              - refId: C
+                relativeTimeRange:
+                    from: 900
+                    to: 0
+                datasourceUid: __expr__
+                model:
+                    conditions:
+                        - evaluator:
+                              params:
+                                  - 0
+                              type: gt
+                          operator:
+                              type: and
+                          query:
+                              params: []
+                          reducer:
+                              params: []
+                              type: last
+                          type: query
+                    datasource:
+                        type: __expr__
+                        uid: __expr__
+                    expression: B
+                    refId: C

@@ -56,6 +56,41 @@ Verify:
 kubectl get nodes
 ```
 
+#### Linking your local kubectl to K3s
+
+To manage the cluster from your laptop, copy the kubeconfig from the server:
+
+```bash
+scp root@<server>:/etc/rancher/k3s/k3s.yaml ~/.kube/k3s-marketplace.yaml
+```
+
+Replace the default `https://127.0.0.1:6443` server entry with the public IP/DNS of the node:
+
+```bash
+SERVER_IP=<your_public_ip>
+sed -i '' "s/127.0.0.1/${SERVER_IP}/" ~/.kube/k3s-marketplace.yaml
+```
+
+Merge the file with your existing kubeconfig:
+
+```bash
+KUBECONFIG=$HOME/.kube/config:$HOME/.kube/k3s-marketplace.yaml \
+  kubectl config view --flatten > $HOME/.kube/config-merged
+mv $HOME/.kube/config-merged $HOME/.kube/config
+```
+
+Rename the new context for clarity:
+
+```bash
+kubectl config rename-context default k3s-marketplace
+```
+
+You can now target the cluster explicitly:
+
+```bash
+kubectl --context k3s-marketplace get pods -A
+```
+
 ### 2. ArgoCD Installation
 
 Install the hardened ArgoCD manifest (adds repo-server resource requests, relaxed probes, and limited parallelism so it survives on small clusters):
@@ -201,6 +236,7 @@ Configured via ConfigMap (`k8s/base/configmap.yaml`):
 - `METRICS_ENABLED`: Toggle Prometheus endpoint (default: true)
 - `METRICS_HOST`: Host for the metrics HTTP server (default: 0.0.0.0)
 - `METRICS_PORT`: Port for the endpoint (default: 8000)
+- `OZON_COOKIE_PATH`: File path for cached Ozon anti-bot cookies (defaults to `.ozon_cookies.json` in the app directory)
 
 ### Monitoring & metrics
 
@@ -261,6 +297,24 @@ Admin login/password values live directly in the Kustomize patches:
 - Production: `k8s/monitoring/production/patches/grafana-auth.yaml` (admin/admin)
 
 Edit those files (or provide your own overlay) to set environment-specific credentials. After committing the change and letting ArgoCD sync, Grafana pods restart with the new password - make sure to store the real values in your secrets manager/runbook for future reference.
+
+##### Grafana alerts
+
+`k8s/monitoring/common/grafana-alerts.yaml` provisions a `GrafanaRule` folder called “Marketplace Alerts” with several rules wired to the runbooks in this document:
+
+- `Ozon price scraper failures`/`Wildberries price scraper failures` trigger when `marketplace_bot_requests_total` reports ≥3 non-success results for the respective marketplace within 5 minutes (cookie/run blocking issues).
+- `Scheduler stalled` fires if no successful run was recorded for 10 minutes.
+- `Price refresh errors` watches `marketplace_bot_price_check_errors_total` and alerts once ≥3 products failed inside 15 minutes.
+- `Refresh queue stuck` uses the `marketplace_bot_products_refresh_inflight` gauge to detect queues above 30 items for 10 minutes.
+- `Scraper latency p95 high` detects `marketplace_bot_request_duration_seconds_bucket` p95 >20 s for at least 5 minutes.
+- `Scheduler error rate` triggers when `marketplace_bot_scheduler_runs_total{status!="success"}` increases, indicating the cron job aborted.
+
+After syncing the overlay:
+
+1. Go to Grafana → Alerting → Contact points and configure the destination (email, Slack, Telegram, etc.).
+2. In Alerting → Notification policies, route alerts from the “Marketplace Alerts” folder to that contact point.
+3. Tune any rule (threshold, lookback window, or datasource UID) directly in the YAML if your environment needs different limits.
+
 
 ## Database Management
 
@@ -363,6 +417,87 @@ Verify CI completed:
 ```bash
 gh run list --workflow=ci.yml --limit 5
 ```
+
+### Price refresh errors
+
+1. Inspect the scheduler logs to locate the failing product IDs and stack traces:
+
+```bash
+kubectl logs -n marketplace-bot-prod deploy/marketplace-bot | grep -E "price_check|Failed to refresh product"
+```
+
+2. Open Grafana’s “Price refresh errors (30m)” panel to confirm whether the failures are isolated to one marketplace or affect everything.
+3. For per-product issues (for example, the link is dead or requires authentication), temporarily disable that product in PostgreSQL:
+
+```bash
+kubectl exec -n marketplace-bot-prod deploy/postgres -- \
+  psql -U admin -d price_tracker_bot \
+  -c "update products set is_active=false where id=<problem-id>;"
+```
+
+4. If errors are HTTP-related, run the local probe (`PYTHONPATH=. uv run python test.py --log-level DEBUG --url <product-url>`) from within the bot pod to reproduce and capture more context.
+
+### Refresh queue backlog
+
+1. When the “Inflight products” panel and the `Refresh queue stuck` alert stay high, first confirm that the scheduler loop is still making progress:
+
+```bash
+kubectl logs -n marketplace-bot-prod deploy/marketplace-bot | grep price_check_started
+```
+
+2. Check whether the scrapers are blocked (Ozon/Wildberries alerts) or slow (see the latency runbook below)—backlogs frequently originate there.
+3. Scale the worker temporarily if you simply need more concurrency:
+
+```bash
+kubectl scale deployment marketplace-bot -n marketplace-bot-prod --replicas=2
+```
+
+4. After the queue drains, return to the normal replica count and consider raising resources permanently or splitting refresh windows if the inflight metric frequently exceeds 30 (this metric is also the target for future autoscaling controllers).
+
+### Slow scraper latency
+
+1. Open the “Request latency p95” panel and switch the legend to see which marketplace breaches the threshold.
+2. Check the bot logs for timeouts or Playwright warnings:
+
+```bash
+kubectl logs -n marketplace-bot-prod deploy/marketplace-bot | grep -E "timeout|challenge|chromium"
+```
+
+3. Execute a quick network smoke test from the pod to verify outbound access:
+
+```bash
+kubectl exec -n marketplace-bot-prod deploy/marketplace-bot -- \
+  curl -I https://www.ozon.ru/product/000000/
+```
+
+4. If latency only affects Ozon, refresh cookies (see below) and restart the deployment; for Wildberries investigate recent site changes.
+
+### Scheduler errors
+
+1. Look at the `scheduler_runs_total` panel to see whether runs end in `failed`.
+2. Tail the scheduler logs to grab the stack trace:
+
+```bash
+kubectl logs -n marketplace-bot-prod deploy/marketplace-bot | grep -A5 -B1 "scheduler"
+```
+
+3. Verify PostgreSQL availability (`kubectl logs -n marketplace-bot-prod -l app=postgres`) and restart the deployment if the scheduler crashed.
+4. After fixing the underlying issue, restart the deployment to trigger a fresh run immediately:
+
+```bash
+kubectl rollout restart deployment marketplace-bot -n marketplace-bot-prod
+```
+
+### Resetting Ozon cookies
+
+The anti-bot challenge is solved once and the resulting cookies are cached in `.ozon_cookies.json` (or whatever `OZON_COOKIE_PATH` points to). The file lives inside `/app` in the bot container, so removing it forces the next request to re-run the challenge and refresh the cache:
+
+```bash
+kubectl exec -n marketplace-bot-prod deploy/marketplace-bot -- \
+  rm -f /app/.ozon_cookies.json
+```
+
+If you want the cookies to survive pod restarts you can mount a small PVC or hostPath volume and set `OZON_COOKIE_PATH` accordingly.
 
 ## Rollback
 
