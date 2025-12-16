@@ -9,8 +9,10 @@ import app.services.ozon_client as oc
 
 
 class FakeResponseOK:
-    def __init__(self, payload):
+    def __init__(self, payload, status=200, headers=None):
         self.ok = True
+        self.status = status
+        self.headers = headers or {}
         self._payload = payload
 
     async def json(self):
@@ -18,8 +20,10 @@ class FakeResponseOK:
 
 
 class FakeResponseBad:
-    def __init__(self):
+    def __init__(self, status=500, headers=None):
         self.ok = False
+        self.status = status
+        self.headers = headers or {}
 
     async def json(self):
         raise RuntimeError("should not be called")
@@ -27,12 +31,13 @@ class FakeResponseBad:
 
 class FakeRequestClient:
     def __init__(self, response):
-        self._response = response
+        self._responses = response if isinstance(response, list) else [response]
         self.calls = []
 
     async def get(self, url, headers=None):
         self.calls.append((url, headers))
-        return self._response
+        idx = min(len(self.calls) - 1, len(self._responses) - 1)
+        return self._responses[idx]
 
 
 class FakePage:
@@ -255,31 +260,6 @@ async def test_pass_ozon_challenge_fail_on_timeout_or_no_cookie():
     assert ok2 is False
 
 
-@pytest.mark.asyncio
-async def test_ozon_api_get_json_v2_ok():
-    ctx = FakeContext()
-    payload = {"hello": "world"}
-    ctx.request = FakeRequestClient(FakeResponseOK(payload))
-    data = await oc._ozon_api_get_json_v2(ctx, "https://www.ozon.ru/product/abc?q=1")
-    assert data == payload
-
-
-@pytest.mark.asyncio
-async def test_ozon_api_get_json_v2_not_ok_or_json_error():
-    ctx = FakeContext()
-    ctx.request = FakeRequestClient(FakeResponseBad())
-    data = await oc._ozon_api_get_json_v2(ctx, "https://www.ozon.ru/product/abc")
-    assert data is None
-
-    class _Resp(FakeResponseOK):
-        async def json(self):
-            raise RuntimeError("boom")
-
-    ctx.request = FakeRequestClient(_Resp({"ignored": True}))
-    data2 = await oc._ozon_api_get_json_v2(ctx, "https://www.ozon.ru/product/abc")
-    assert data2 is None
-
-
 def test_iter_widget_objs_and_predicates():
     ws = {"webProductHeading-1": json.dumps({"title": "T"}), "notjson": {"x": 1}}
     objs = list(oc._iter_widget_objs(ws))
@@ -287,6 +267,38 @@ def test_iter_widget_objs_and_predicates():
     assert oc._is_title_widget(objs[0][0]) is True
     assert oc._is_price_widget("webProductPrices-foo") is True
     assert oc._is_price_widget("random") is False
+
+
+@pytest.mark.asyncio
+async def test_fetch_with_composer_happy(monkeypatch):
+    ctx = FakeContext()
+    payload = {"widgetStates": {"x": "{}"}}
+    ctx.request = FakeRequestClient(FakeResponseOK(payload))
+    data = await oc._fetch_with_composer(ctx, "https://www.ozon.ru/product/test")
+    assert data == payload
+    assert ctx.request.calls, "expected API call"
+
+
+@pytest.mark.asyncio
+async def test_fetch_with_composer_retry(monkeypatch):
+    ctx = FakeContext()
+    payload = {"widgetStates": {"x": "{}"}}
+    ctx.request = FakeRequestClient(
+        [
+            FakeResponseBad(status=429, headers={"Retry-After": "0"}),
+            FakeResponseOK(payload),
+        ]
+    )
+    sleeps = []
+
+    async def fake_sleep(duration):
+        sleeps.append(duration)
+
+    monkeypatch.setattr(oc.asyncio, "sleep", fake_sleep)
+
+    data = await oc._fetch_with_composer(ctx, "https://www.ozon.ru/product/test")
+    assert data == payload
+    assert len(sleeps) == 1
 
 
 def test_pick_title_routes():
@@ -343,14 +355,22 @@ async def test_fetch_product_info_via_api_happy(monkeypatch):
         ),
         "seo": {"title": "Ignored"},
     }
-    fake_ctx.request = FakeRequestClient(FakeResponseOK(payload))
 
     async def fake_ensure_started():
         oc._Browser._ctx = cast(Any, fake_ctx)
 
     monkeypatch.setattr(oc._Browser, "ensure_started", fake_ensure_started)
-
     monkeypatch.setattr(oc._Browser, "_ctx", fake_ctx, raising=False)
+
+    async def fail_warmup(ctx):
+        raise AssertionError("warmup should not run when composer succeeds")
+
+    monkeypatch.setattr(oc, "_warmup_challenge", fail_warmup)
+
+    async def fake_composer(ctx, url, attempts=3):
+        return payload
+
+    monkeypatch.setattr(oc, "_fetch_with_composer", fake_composer)
 
     info = await oc.fetch_product_info_via_api("https://ozon.ru/product/whatever")
     assert info.title == "Awesome Chair"
@@ -362,7 +382,6 @@ async def test_fetch_product_info_via_api_happy(monkeypatch):
 @pytest.mark.asyncio
 async def test_fetch_product_info_via_api_ozon_empty(monkeypatch):
     fake_ctx = FakeContext()
-    fake_ctx.request = FakeRequestClient(FakeResponseOK(None))
 
     async def fake_ensure_started():
         oc._Browser._ctx = cast(Any, fake_ctx)
@@ -370,8 +389,21 @@ async def test_fetch_product_info_via_api_ozon_empty(monkeypatch):
     monkeypatch.setattr(oc._Browser, "ensure_started", fake_ensure_started)
     monkeypatch.setattr(oc._Browser, "_ctx", fake_ctx, raising=False)
 
+    warm_calls = {"n": 0}
+
+    async def fake_warm(ctx):
+        warm_calls["n"] += 1
+        return True
+
+    async def fake_composer(ctx, url, attempts=3):
+        return None
+
+    monkeypatch.setattr(oc, "_fetch_with_composer", fake_composer)
+    monkeypatch.setattr(oc, "_warmup_challenge", fake_warm)
+
     with pytest.raises(oc.OzonBlockedError):
         await oc.fetch_product_info_via_api("https://www.ozon.ru/product/abc")
+    assert warm_calls["n"] == 1
 
 
 @pytest.mark.asyncio

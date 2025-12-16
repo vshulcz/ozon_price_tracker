@@ -4,10 +4,13 @@ import asyncio
 import contextlib
 import json
 import logging
+import os
 import platform
 import re
+import shlex
 from dataclasses import dataclass
 from decimal import Decimal
+from pathlib import Path
 from urllib.parse import quote, urlparse, urlsplit, urlunsplit
 
 from playwright.async_api import Browser, BrowserContext, Page, async_playwright
@@ -19,6 +22,13 @@ _WIDGET_PRICE_KEYS = ("webPrice", "webProductPrices", "webSale")
 _WIDGET_TITLE_KEYS = ("webProductHeading",)
 
 ALLOWED_RESOURCE_TYPES = {"document", "script", "xhr", "fetch", "other"}
+
+
+def _env_bool(name: str, default: bool) -> bool:
+    val = os.getenv(name)
+    if val is None:
+        return default
+    return val.strip().lower() in {"1", "true", "yes", "on"}
 
 
 class OzonBlockedError(RuntimeError):
@@ -74,6 +84,10 @@ class _Browser:
     _browser: Browser | None = None
     _ctx: BrowserContext | None = None
     _lock = asyncio.Lock()
+    _headless = _env_bool("OZON_HEADLESS", True)
+    _skip_challenge = _env_bool("OZON_SKIP_CHALLENGE", False)
+    _channel_override = os.getenv("OZON_BROWSER_CHANNEL")
+    _extra_args = shlex.split(os.getenv("OZON_BROWSER_ARGS", ""))
 
     @classmethod
     async def ensure_started(cls) -> None:
@@ -91,18 +105,25 @@ class _Browser:
             args = prof["args"] + [
                 "--disable-blink-features=AutomationControlled",
             ]
+            if cls._extra_args:
+                args.extend(cls._extra_args)
 
             launch_kwargs = {
-                "headless": True,
+                "headless": cls._headless,
                 "args": args,
                 "ignore_default_args": ["--enable-automation"],
                 "timeout": 300000,
             }
-            if prof["channel"]:
+            channel = cls._channel_override
+            if channel == "":
+                channel = None
+            if channel is None:
+                channel = prof["channel"]
+            if channel:
                 try:
-                    launch_kwargs["channel"] = prof["channel"]
+                    launch_kwargs["channel"] = channel
                     cls._browser = await cls._pl.chromium.launch(**launch_kwargs)
-                    logger.info("Browser started with channel: %s", prof["channel"])
+                    logger.info("Browser started with channel: %s", channel)
                 except Exception as e:
                     logger.warning("Failed to start browser with channel, using default: %s", e)
                     launch_kwargs.pop("channel", None)
@@ -111,19 +132,29 @@ class _Browser:
                 cls._browser = await cls._pl.chromium.launch(**launch_kwargs)
                 logger.info("Browser started without channel")
 
-            cls._ctx = await cls._browser.new_context(
-                locale="ru-RU",
-                user_agent=prof["ua"],
-                viewport={"width": 1366, "height": 768},
-                java_script_enabled=True,
-                color_scheme="light",
-                service_workers="block",
-                extra_http_headers={
+            storage_state = None
+            storage_path = _cookie_storage_path()
+            if storage_path.exists():
+                storage_state = storage_path.as_posix()
+                logger.info("Loading Ozon cookies from %s", storage_path)
+
+            context_kwargs = {
+                "locale": "ru-RU",
+                "user_agent": prof["ua"],
+                "viewport": {"width": 1366, "height": 768},
+                "java_script_enabled": True,
+                "color_scheme": "light",
+                "service_workers": "block",
+                "extra_http_headers": {
                     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,"
                     "image/avif,image/webp,*/*;q=0.8",
                     "Accept-Language": "ru-RU,ru;q=0.9,en-US;q=0.8,en;q=0.7",
                 },
-            )
+            }
+            if storage_state:
+                context_kwargs["storage_state"] = storage_state
+
+            cls._ctx = await cls._browser.new_context(**context_kwargs)
             await cls._ctx.add_init_script(f"""
                 Object.defineProperty(navigator, 'webdriver', {{ get: () => undefined }});
                 try {{
@@ -169,6 +200,8 @@ async def _route_blocker(route, request):
 
 
 async def _pass_ozon_challenge(ctx: BrowserContext, page: Page, timeout_ms=60000) -> bool:
+    if _Browser._skip_challenge:
+        return True
     logger.debug("Passing Ozon anti-bot challenge...")
     try:
         await page.goto(
@@ -196,6 +229,25 @@ async def _pass_ozon_challenge(ctx: BrowserContext, page: Page, timeout_ms=60000
     return ok
 
 
+async def _warmup_challenge(ctx: BrowserContext) -> bool:
+    if _Browser._skip_challenge:
+        return True
+    page = None
+    passed = False
+    try:
+        page = await ctx.new_page()
+        passed = await _pass_ozon_challenge(ctx, page, timeout_ms=30000)
+        if passed:
+            await _save_storage_state(ctx)
+    except Exception as exc:
+        logger.debug("Warmup challenge failed: %s", exc)
+    finally:
+        if page:
+            with contextlib.suppress(Exception):
+                await page.close()
+    return passed
+
+
 async def fetch_product_info(url: str, *, retries: int = 2) -> OzonProductInfo:
     if not re.search(r"^https?://(www\.)?ozon\.[^/]+/", url, re.IGNORECASE):
         logger.warning("Invalid Ozon URL: %s", url[:100])
@@ -205,9 +257,7 @@ async def fetch_product_info(url: str, *, retries: int = 2) -> OzonProductInfo:
     logger.debug("Fetching product info from: %s", url[:100])
 
     for attempt in range(retries + 1):
-        page = None
         try:
-            page = await _Browser.page()
             result = await fetch_product_info_via_api(url)
             logger.info(
                 "Product fetched | URL: %s | Title: %s | Price card: %s | Price: %s",
@@ -227,11 +277,6 @@ async def fetch_product_info(url: str, *, retries: int = 2) -> OzonProductInfo:
             )
             if attempt < retries:
                 await asyncio.sleep(1.2)
-        finally:
-            if page:
-                with contextlib.suppress(Exception):
-                    await page.close()
-
     logger.error("All fetch attempts failed for URL: %s", url[:100])
     raise OzonBlockedError()
 
@@ -363,41 +408,22 @@ def _pick_prices(data: dict) -> tuple[Decimal | None, Decimal | None]:
     return with_card, no_card
 
 
-async def _ozon_api_get_json_v2(ctx, url: str) -> dict | None:
-    s = urlsplit(url)
-    path_q = s.path + (("?" + s.query) if s.query else "")
-    q = quote(path_q, safe="/:?=&%")
-    api_url = f"https://api.ozon.ru/composer-api.bx/page/json/v2?url={q}"
-    headers = {
-        "Accept": "application/json",
-        "Referer": "https://www.ozon.ru/",
-        "X-O3-App-Name": "dweb_client",
-        "X-O3-App-Version": "1.0.0",
-    }
-    r = await ctx.request.get(api_url, headers=headers)
-    if not r.ok:
-        return None
-    with contextlib.suppress(Exception):
-        return await r.json()
-    return None
-
-
 async def fetch_product_info_via_api(url: str) -> OzonProductInfo:
-    await _Browser.ensure_started()
-    ctx = _Browser._ctx
-    assert ctx is not None
+    normalized_url = _to_www(url)
+    ctx = await _ensure_browser_context()
+    if not ctx:
+        logger.error("Browser context unavailable for URL: %s", url[:100])
+        raise OzonBlockedError("ozon_browser_unavailable")
 
-    with contextlib.suppress(Exception):
-        page = await ctx.new_page()
-        try:
-            await _pass_ozon_challenge(ctx, page, timeout_ms=30000)
-        finally:
-            await page.close()
-
-    data = await _ozon_api_get_json_v2(ctx, _to_www(url))
+    data = await _fetch_with_composer(ctx, normalized_url)
     if not data:
-        logger.error("Empty API response from Ozon for URL: %s", url[:100])
-        raise OzonBlockedError("ozon_api_empty")
+        logger.info("Composer empty for %s, forcing challenge refresh", url[:80])
+        refreshed = await _warmup_challenge(ctx)
+        if refreshed:
+            data = await _fetch_with_composer(ctx, normalized_url)
+        if not data:
+            logger.error("Composer API returned empty payload for URL: %s", url[:100])
+            raise OzonBlockedError("ozon_composer_empty")
 
     title = _pick_title(data)
     if not title:
@@ -414,3 +440,82 @@ async def fetch_product_info_via_api(url: str) -> OzonProductInfo:
         )
 
     return OzonProductInfo(title=title, price_with_card=with_card, price_no_card=no_card)
+
+
+async def _fetch_with_composer(ctx: BrowserContext, url: str, attempts: int = 3) -> dict | None:
+    relative = _relative_url_path(url)
+    q = quote(relative, safe="/:?=&%")
+    api_url = f"https://www.ozon.ru/api/composer-api.bx/page/json/v2?url={q}"
+    headers = {
+        "Accept": "application/json",
+        "Referer": "https://www.ozon.ru/",
+        "X-O3-App-Name": "dweb_client",
+        "X-O3-App-Version": "1.0.0",
+    }
+
+    delay = 1.0
+    for attempt in range(1, attempts + 1):
+        try:
+            resp = await ctx.request.get(api_url, headers=headers)
+        except Exception as exc:
+            logger.warning("Composer request failed (%s/%s): %s", attempt, attempts, exc)
+            resp = None
+
+        if resp and getattr(resp, "ok", False):
+            with contextlib.suppress(Exception):
+                data = await resp.json()
+                if data:
+                    logger.debug("Composer API succeeded on attempt %s", attempt)
+                    return data
+
+        status = getattr(resp, "status", None) if resp else None
+        retry_after = 0.0
+        if resp and hasattr(resp, "headers"):
+            with contextlib.suppress(Exception):
+                retry_after = float(resp.headers.get("Retry-After", 0) or 0)
+
+        if attempt < attempts:
+            sleep_for = retry_after or delay
+            logger.debug(
+                "Composer API retry %s/%s in %.1fs (status=%s)",
+                attempt,
+                attempts,
+                sleep_for,
+                status,
+            )
+            await asyncio.sleep(sleep_for)
+            delay = min(delay * 2, 10.0)
+
+    return None
+
+
+def _relative_url_path(url: str) -> str:
+    parts = urlsplit(url)
+    path_q = parts.path or "/"
+    if parts.query:
+        path_q = f"{path_q}?{parts.query}"
+    return path_q
+
+
+async def _ensure_browser_context() -> BrowserContext | None:
+    try:
+        await _Browser.ensure_started()
+    except Exception as exc:
+        logger.warning("Browser startup failed, reason: %s", exc)
+        return None
+    return _Browser._ctx
+
+
+def _cookie_storage_path() -> Path:
+    custom = os.getenv("OZON_COOKIE_PATH")
+    return Path(custom) if custom else Path(".ozon_cookies.json")
+
+
+async def _save_storage_state(ctx: BrowserContext) -> None:
+    path = _cookie_storage_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        await ctx.storage_state(path=path.as_posix())
+        logger.debug("Persisted Ozon cookies to %s", path)
+    except Exception as exc:
+        logger.warning("Failed to persist Ozon cookies to %s: %s", path, exc)
