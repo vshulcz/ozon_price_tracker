@@ -10,7 +10,7 @@ namespace: marketplace-bot-prod
 images:
 - name: ghcr.io/vshulcz/marketplace_price_tracker
   newName: ghcr.io/vshulcz/marketplace_price_tracker
-  newTag: sha-3a9b0ef
+  newTag: sha-394ab9d
 
 patches:
 - path: patches/bot-resources.yaml
