@@ -1,5 +1,44 @@
 # Changelog
 
+## [1.1.0](https://github.com/vshulcz/marketplace_price_tracker/compare/v1.0.0...v1.1.0) (2025-12-16)
+
+
+### Features
+
+* add prometheus+grafana ([dee2915](https://github.com/vshulcz/marketplace_price_tracker/commit/dee29159fb28ea8ca09240315efd2516331c97fe))
+* add prometheus+grafana ([ff5ff25](https://github.com/vshulcz/marketplace_price_tracker/commit/ff5ff2556f2c98238f649df6c726d23c05228d55))
+* **grafana:** add lerting ([a21edbe](https://github.com/vshulcz/marketplace_price_tracker/commit/a21edbeb001d7e25da898afb35adbf399c21b2bf))
+* **grafana:** dashboards added ([24255f3](https://github.com/vshulcz/marketplace_price_tracker/commit/24255f369322e68ce01ab7c70c07a461d208fe20))
+* regularly backuping ([1b718e4](https://github.com/vshulcz/marketplace_price_tracker/commit/1b718e476b97ac9d09f009aa0e84d1a9fd3cee47))
+
+
+### Bug Fixes
+
+* app name ([c93b308](https://github.com/vshulcz/marketplace_price_tracker/commit/c93b308de58c8f97f92baf014c353cd85786a5e9))
+* **ci:** disabled updating images from release-please versions ([262071e](https://github.com/vshulcz/marketplace_price_tracker/commit/262071eba75e0d276d17289c18a09ef0d9368be5))
+* **grafana:** deployment issue ([3533da7](https://github.com/vshulcz/marketplace_price_tracker/commit/3533da715d242f00630030d0ba449ed2114ba036))
+* **grafana:** deployment issue ([1b1c575](https://github.com/vshulcz/marketplace_price_tracker/commit/1b1c5755b643d710f6fa8a8a4a87135715094b58))
+* **grafana:** deployment issue ([8a6f5d7](https://github.com/vshulcz/marketplace_price_tracker/commit/8a6f5d773f20e0cd7e827d9b5a5b18deea24b7da))
+* **grafana:** deployment issue ([9763d13](https://github.com/vshulcz/marketplace_price_tracker/commit/9763d13ae58a8ce6714fd6a9d9925e321728aa69))
+* **grafana:** deployment issue ([6278168](https://github.com/vshulcz/marketplace_price_tracker/commit/6278168b68bab9ff85babcbc1e8e82bc3cf9d5b1))
+* **grafana:** monitoring dev storage/ingress and add prod persistence ([da91495](https://github.com/vshulcz/marketplace_price_tracker/commit/da91495b0623f9e87c96f28b7137785764641146))
+* increase resources and add shared memory for Playwright browser ([ebd58c5](https://github.com/vshulcz/marketplace_price_tracker/commit/ebd58c57e92c8cff7359e956acf96f4b8862b2e3))
+* increase resources for playwright ([c91f3ae](https://github.com/vshulcz/marketplace_price_tracker/commit/c91f3ae5042f7e6677bb2faa2db31e954146188e))
+* increased bot resources ([3a9b0ef](https://github.com/vshulcz/marketplace_price_tracker/commit/3a9b0ef2827793fbbee17261e2af9f35eb98f278))
+* metrics endpoint charset compatibility with aiohttp 3.10 ([63c2b21](https://github.com/vshulcz/marketplace_price_tracker/commit/63c2b212212dc82bfebeb9cefe1e3071882c7116))
+* metrics endpoint charset compatibility with aiohttp 3.10 ([ba06654](https://github.com/vshulcz/marketplace_price_tracker/commit/ba0665487239eaf5ceefa58234bfca1d98aa5a4b))
+* ozon client improvements ([36e3848](https://github.com/vshulcz/marketplace_price_tracker/commit/36e3848be3a10671ad625295134212e3f0453fbf))
+* ozon client improvements ([c564188](https://github.com/vshulcz/marketplace_price_tracker/commit/c56418817b2323ccf3c39079ca19fb994c4c01cd))
+* playwright version ([cbe5779](https://github.com/vshulcz/marketplace_price_tracker/commit/cbe57794c8df10e0d8e295917a2ef2d74df7f71d))
+* **prometheus:** metric names ([3f06fb4](https://github.com/vshulcz/marketplace_price_tracker/commit/3f06fb4ebb33199c7679eeb7d1b9b438adab41cd))
+* reduced resources utilization ([5d250dd](https://github.com/vshulcz/marketplace_price_tracker/commit/5d250dd81769e08052432a1f724ebe5f21df3f55))
+* remove labels from kustomization to avoid immutable selector errors ([e1c1a1c](https://github.com/vshulcz/marketplace_price_tracker/commit/e1c1a1c1e02fb3f0c3cfdf3f7155c86103a5d755))
+
+
+### Performance Improvements
+
+* disable access logs for metrics endpoint ([bdcf674](https://github.com/vshulcz/marketplace_price_tracker/commit/bdcf6743d1bd0bd63842f4bb46ee705446ad63db))
+
 ## [1.0.0](https://github.com/vshulcz/marketplace_price_tracker/compare/v0.5.0...v1.0.0) (2025-12-06)
 
 
