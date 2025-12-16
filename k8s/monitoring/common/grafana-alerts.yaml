@@ -1,5 +1,5 @@
 apiVersion: grafana.integreatly.org/v1beta1
-kind: GrafanaRule
+kind: GrafanaAlertRuleGroup
 metadata:
     name: marketplace-grafana-alerts
     labels:
