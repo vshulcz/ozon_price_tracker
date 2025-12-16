@@ -8,8 +8,7 @@ spec:
     instanceSelector:
         matchLabels:
             app.kubernetes.io/name: marketplace-grafana
-    folderRef:
-        name: marketplace-alerts-folder
+    folderRef: marketplace-alerts-folder
     interval: 60s
     rules:
         - uid: ozon-price-scraper-failures
