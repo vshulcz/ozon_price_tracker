@@ -5,6 +5,7 @@ metadata:
     labels:
         app.kubernetes.io/name: marketplace-prometheus
 spec:
+    version: v3.7.3
     replicas: 1
     serviceAccountName: prometheus-k8s
     serviceMonitorSelector:
